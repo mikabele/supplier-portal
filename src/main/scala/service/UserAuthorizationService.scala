@@ -1,16 +1,17 @@
 package service
 
-import cats.data.ValidatedNel
 import cats.effect.Sync
-import domain.user.User
-import dto.user.UserDto
+import domain.user._
+import dto.user._
 import repository.UserRepository
-import sun.security.util.Password
 import service.error.user.UserAuthorizationError
 import service.impl.UserAuthorizationServiceImpl
 
 trait UserAuthorizationService[F[_]] {
-  def authorizeUser(userDto: UserDto): F[Either[UserAuthorizationError, User]]
+  def authorizeUser(
+    userDto:      NonAuthorizedUserDto,
+    expectedRole: Role
+  ): F[Either[UserAuthorizationError, AuthorizedUser]]
 }
 
 object UserAuthorizationService {

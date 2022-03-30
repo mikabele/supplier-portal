@@ -1,30 +1,37 @@
 package service.impl
 
-import cats.Functor
-import cats.implicits.{catsSyntaxApplicativeId, catsSyntaxEitherId, catsSyntaxEq}
-import domain.user
-import dto.user
+import cats.Monad
+import cats.data.EitherT
+import cats.implicits._
+import domain.user._
+import dto.user._
 import repository.UserRepository
 import service.UserAuthorizationService
-import service.error.user
-import dto.user.UserDto
 import service.error.user.UserAuthorizationError
-import domain.user.User
-import cats.instances._
+import service.error.user.UserAuthorizationError.{InvalidLogin, InvalidPassword, NotEnoughPermissions}
 
-class UserAuthorizationServiceImpl[F[_]](userRepository: UserRepository[F]) extends UserAuthorizationService[F] {
-  override def authorizeUser(userDto: UserDto): F[Either[UserAuthorizationError, User]] = {
-    for {
-      password      <- userRepository.checkLoginAndGetPassword(userDto.login)
-      _             <- checkPassword(userDto, password)
-      validatedUser <- userDtoToUser(userDto)
-    } yield validatedUser
+class UserAuthorizationServiceImpl[F[_]: Monad](userRepository: UserRepository[F]) extends UserAuthorizationService[F] {
+  override def authorizeUser(
+    userDto:      NonAuthorizedUserDto,
+    expectedRole: Role
+  ): F[Either[UserAuthorizationError, AuthorizedUser]] = {
+    val res: EitherT[F, UserAuthorizationError, AuthorizedUser] = for {
+      user <- EitherT.fromOptionF(userRepository.tryFindUserByLogin(userDto.login), InvalidLogin)
+      _    <- EitherT(checkPassword(userDto, user.password.value).pure[F])
+      _    <- EitherT(checkRole(user, expectedRole).pure[F])
+    } yield user
+
+    res.value
   }
 
-  private def checkPassword(userDto: UserDto, expectedPassword: String): Either[UserAuthorizationError, String] = {
-    if (userDto.password === expectedPassword)
-      userDto.password.asRight
-    else
-      UserAuthorizationError.InvalidPassword(userDto.password).asLeft
+  private def checkRole(user: AuthorizedUser, role: Role): Either[UserAuthorizationError, AuthorizedUser] = {
+    Either.cond(role == user.role, user, NotEnoughPermissions(role))
+  }
+
+  private def checkPassword(
+    userDto:          NonAuthorizedUserDto,
+    expectedPassword: String
+  ): Either[UserAuthorizationError, NonAuthorizedUserDto] = {
+    Either.cond(expectedPassword == userDto.password, userDto, InvalidPassword(userDto.login))
   }
 }
