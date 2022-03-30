@@ -1,11 +1,8 @@
 package domain
 
-import eu.timepit.refined.api.Refined
-import eu.timepit.refined.boolean.And
-import eu.timepit.refined.string._
+import types._
 
 object user {
-  type NonEmptyStr = String Refined MatchesRegex["\\w+"] And Trimmed
 
   sealed trait Role
   object Role {
@@ -14,5 +11,12 @@ object user {
     final case object Courier extends Role
   }
 
-  final case class User(userID: Int, name: NonEmptyStr, role: Role)
+  final case class AuthorizedUser(
+    userID:   Int,
+    login:    NonEmptyStr,
+    password: NonEmptyStr,
+    role:     Role,
+    phone:    PhoneStr,
+    email:    EmailStr
+  )
 }
