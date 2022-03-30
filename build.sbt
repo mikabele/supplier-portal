@@ -9,10 +9,11 @@ lazy val root = (project in file("."))
 
 scalacOptions += "-Ypartial-unification"
 
-val doobieVersion      = "1.0.0-RC1"
-val http4sVersion      = "0.23.11"
-val circeVersion       = "0.14.1"
-val circeConfigVersion = "0.8.0"
+val doobieVersion           = "1.0.0-RC1"
+val http4sVersion           = "0.23.11"
+val circeVersion            = "0.14.1"
+val circeConfigVersion      = "0.8.0"
+val dtoMapperChimneyVersion = "0.6.1"
 
 libraryDependencies ++= Seq(
   "eu.timepit"    %% "refined"                % "0.9.28",
@@ -35,7 +36,8 @@ libraryDependencies ++= Seq(
   "io.circe"      %% "circe-generic"          % circeVersion,
   "io.circe"      %% "circe-generic-extras"   % circeVersion,
   "io.circe"      %% "circe-optics"           % circeVersion,
-  "io.circe"      %% "circe-parser"           % circeVersion
+  "io.circe"      %% "circe-parser"           % circeVersion,
+  "io.scalaland"  %% "chimney"                % dtoMapperChimneyVersion,
 )
 
 addCompilerPlugin(

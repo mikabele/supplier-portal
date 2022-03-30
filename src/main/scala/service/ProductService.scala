@@ -1,24 +1,27 @@
 package service
 
-import cats.data.ValidatedNec
+import cats.data.NonEmptyChain
+import cats.effect.kernel.Sync
 import dto.attachment.CreateAttachmentDto
 import dto.criteria.CriteriaDto
 import dto.product.{CreateProductDto, ReadProductDto, UpdateProductDto}
 import repository.ProductRepository
-import service.error.product.ProductError
+import service.error.validation.ValidationError
 import service.impl.ProductServiceImpl
 
+import java.util.UUID
+
 trait ProductService[F[_]] {
-  def addProduct(productDto:    CreateProductDto): F[ValidatedNec[ProductError, ReadProductDto]]
-  def updateProduct(productDto: UpdateProductDto): F[ValidatedNec[ProductError, ReadProductDto]]
-  def deleteProduct(id:         Int):              F[Either[ProductError, Unit]]
-  def readProducts(): F[Either[ProductError, List[ReadProductDto]]]
-  def attach(attachmentDto:         CreateAttachmentDto): F[ValidatedNec[ProductError, CreateAttachmentDto]]
-  def searchByCriteria(criteriaDto: CriteriaDto):         F[ValidatedNec[ProductError, List[ReadProductDto]]]
+  def addProduct(productDto:    CreateProductDto): F[Either[NonEmptyChain[ValidationError], CreateProductDto]]
+  def updateProduct(productDto: UpdateProductDto): F[Either[NonEmptyChain[ValidationError], UpdateProductDto]]
+  def deleteProduct(id:         UUID):             F[Unit]
+  def readProducts(): F[List[ReadProductDto]]
+  def attach(attachmentDto:         CreateAttachmentDto): F[Either[NonEmptyChain[ValidationError], CreateAttachmentDto]]
+  def searchByCriteria(criteriaDto: CriteriaDto):         F[Either[NonEmptyChain[ValidationError], List[ReadProductDto]]]
 }
 
 object ProductService {
-  def of[F[_]](productRepository: ProductRepository[F]): ProductService[F] = {
+  def of[F[_]: Sync](productRepository: ProductRepository[F]): ProductService[F] = {
     new ProductServiceImpl[F](productRepository)
   }
 }

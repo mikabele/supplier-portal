@@ -1,32 +1,22 @@
 package controller
 
-import cats.{Bifunctor, Functor, Monad}
-import cats.data.Validated.{Invalid, Valid}
-import cats.data.{NonEmptyChain, ValidatedNec}
+import cats.effect.kernel.Concurrent
 import cats.implicits._
-import cats.effect.Sync
-import dto.attachment.CreateAttachmentDto
-import dto.product.{CreateProductDto, UpdateProductDto}
-import org.http4s.{EntityDecoder, EntityEncoder, HttpRoutes, Response}
+import dto.attachment._
+import dto.criteria._
+import dto.product._
+import io.circe.generic.auto._
 import org.http4s.circe.CirceEntityCodec.{circeEntityDecoder, circeEntityEncoder}
 import org.http4s.dsl.Http4sDsl
+import org.http4s.{EntityEncoder, HttpRoutes, Response}
 import service.ProductService
-import io.circe.generic.semiauto._
-import io.circe.generic.auto._
-import org.http4s.circe._
-import io.circe.generic.JsonCodec
-import io.circe.syntax._
-import org.http4s.circe.CirceEntityDecoder._
-import org.http4s.circe.CirceInstances._
-import org.http4s.circe.CirceEntityCodec._
-import org.http4s.circe.CirceEntityEncoder._
-import org.http4s.implicits._
-import service.error.product.ProductError
-import dto.criteria._
+
+// TODO - why circeEntityDecoder def doesn't work and in general why implicits don't work UPD: maybe fixed but ...
+// TODO - why Sync bound doesn't work but Concurrent does, why first is not a subtype of second
 
 object ProductController {
 
-  def routes[F[_]: Sync](productService: ProductService[F]): HttpRoutes[F] = {
+  def routes[F[_]: Concurrent](productService: ProductService[F]): HttpRoutes[F] = {
     val dsl = new Http4sDsl[F] {}
     import dsl._
 
@@ -48,9 +38,7 @@ object ProductController {
       marshalResponse(res)
     }
 
-    // TODO - add automatic convertion for ID
-
-    def deleteProduct(): HttpRoutes[F] = HttpRoutes.of[F] { case DELETE -> Root / "api" / "product" / id =>
+    def deleteProduct(): HttpRoutes[F] = HttpRoutes.of[F] { case DELETE -> Root / "api" / "product" / UUIDVar(id) =>
       for {
         result <- Ok(productService.deleteProduct(id))
       } yield result
@@ -82,8 +70,8 @@ object ProductController {
         marshalResponse(res)
     }
 
-    def marshalResponse[T, E[_, _]](
-      result: F[E[ProductError, T]]
+    def marshalResponse[T, E[_]](
+      result: F[Either[E, T]]
     )(
       implicit E: EntityEncoder[F, T]
     ): F[Response[F]] = {

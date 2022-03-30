@@ -1,11 +1,27 @@
 package repository
 
+import cats.effect.{Async, Sync}
+import domain.attachment.CreateAttachment
+import domain.criteria.Criteria
+import doobie.Transactor
+import repository.impl.DoobieProductRepositoryImpl
+import domain.product._
+
+import java.util.UUID
+
 trait ProductRepository[F[_]] {
 
-  // TODO - add all methods (just to avoid some errors in Intellij)
+  def addProduct(product:    CreateProduct): F[UUID]
+  def updateProduct(product: UpdateProduct): F[Int]
+  def deleteProduct(id:      UUID):          F[Int]
+  def viewProducts(): F[List[ReadProduct]]
+  def attach(attachment:         CreateAttachment): F[UUID]
+  def searchByCriteria(criteria: Criteria):         F[List[ReadProduct]]
 
 }
 
 object ProductRepository {
-  def of[F[_]](params: Any*): ProductRepository[F] = ???
+  def of[F[_]: Sync](tx: Transactor[F]): ProductRepository[F] = {
+    new DoobieProductRepositoryImpl[F](tx)
+  }
 }
