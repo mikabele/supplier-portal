@@ -1,18 +1,13 @@
 package dto
 
-import cats.effect.Concurrent
-import org.http4s.EntityDecoder
-import io.circe.generic.auto._
-
 object criteria {
-//  implicit def criteriaDtoDecoder[F[_]: Concurrent]: EntityDecoder[F, CriteriaDto] =
-//    org.http4s.circe.jsonOf[F, CriteriaDto]
 
   final case class CriteriaDto(
+    id:                Option[String],
     name:              Option[String],
-    categoryId:        Option[String],
+    categoryId:        Option[Int],
     description:       Option[String],
-    supplierId:        Option[String],
+    supplierId:        Option[Int],
     publicationPeriod: Option[String]
   )
 }

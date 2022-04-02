@@ -1,56 +1,61 @@
 package service.impl
 
 import cats.Monad
-import cats.data.{EitherT, NonEmptyChain, ValidatedNec}
+import cats.data.{Chain, EitherT}
 import cats.syntax.all._
-import domain.attachment._
+import eu.timepit.refined.string.Uuid._
+import java.util.UUID
+
 import domain.criteria.Criteria
-import domain.product._
 import dto.attachment._
 import dto.criteria.CriteriaDto
 import dto.product._
-import eu.timepit.refined.boolean.Not._
-import eu.timepit.refined.numeric.Less._
-import eu.timepit.refined.string.MatchesRegex._
-import eu.timepit.refined.string.Url._
-import eu.timepit.refined.string.Uuid._
 import repository.ProductRepository
 import service.ProductService
-import service.error.validation.ValidationError
-import service.error.validation.ValidationError._
-import types._
+import service.error.general.{ErrorsOr, GeneralError}
+import service.error.product.ProductError.ProductNotFound
 import util.ModelMapper._
 import util.RefinedValidator._
-
-import java.util.UUID
 
 class ProductServiceImpl[F[_]: Monad](
   productRep: ProductRepository[F]
 ) extends ProductService[F] {
-  override def addProduct(productDto: CreateProductDto): F[Either[NonEmptyChain[ValidationError], CreateProductDto]] = {
+  override def addProduct(productDto: CreateProductDto): F[ErrorsOr[UUID]] = {
     val res = for {
-      product <- EitherT.fromEither(validateCreateProductDto(productDto).toEither)
-      _       <- EitherT.liftF(productRep.addProduct(product))
-    } yield createProductDomainToDto(product)
+      product <- EitherT.fromEither(validateCreateProductDto(productDto).toEither.leftMap(_.toChain))
+      id      <- EitherT.liftF(productRep.addProduct(product)).leftMap((_: Nothing) => Chain.empty[GeneralError])
+    } yield id
 
     res.value
   }
 
   override def updateProduct(
     productDto: UpdateProductDto
-  ): F[Either[NonEmptyChain[ValidationError], UpdateProductDto]] = {
+  ): F[ErrorsOr[UpdateProductDto]] = {
     val res = for {
-      product <- EitherT.fromEither(validateUpdateProductDto(productDto).toEither)
-      _       <- EitherT.liftF(productRep.updateProduct(product))
-    } yield updateProductDomainToDto(product)
+      id      <- EitherT.fromEither(refinedValidation(productDto.id)(uuidValidate).toEither).leftMap(_.toChain)
+      criteria = Criteria(id.pure[Option])
+      readDomains <- EitherT
+        .liftF(productRep.searchByCriteria(criteria))
+        .leftMap((_: Nothing) => Chain.empty[GeneralError])
+      readDomain <- EitherT.fromOption(
+        readDomains.headOption,
+        Chain[GeneralError](ProductNotFound(UUID.fromString(id.value)))
+      )
+      updateDomain = readToUpdateProduct(readDomain)
+      _           <- EitherT.liftF(productRep.updateProduct(updateDomain)).leftMap((_: Nothing) => Chain.empty[GeneralError])
+    } yield updateProductDomainToDto(updateDomain)
 
     res.value
   }
 
-  override def deleteProduct(id: UUID): F[Unit] = {
-    for {
-      _ <- productRep.deleteProduct(id)
-    } yield ()
+  override def deleteProduct(id: UUID): F[ErrorsOr[Int]] = {
+    val res = for {
+      count  <- EitherT.liftF(productRep.deleteProduct(id)).leftMap((_: Nothing) => Chain.empty[GeneralError])
+      result <- EitherT.fromEither(Either.cond(count > 0, count, Chain[GeneralError](ProductNotFound(id))))
+    } yield result
+
+    res.value
   }
 
   override def readProducts(): F[List[ReadProductDto]] = {
@@ -62,71 +67,26 @@ class ProductServiceImpl[F[_]: Monad](
 
   override def attach(
     attachmentDto: CreateAttachmentDto
-  ): F[Either[NonEmptyChain[ValidationError], CreateAttachmentDto]] = {
+  ): F[ErrorsOr[UUID]] = {
     val res = for {
-      attachment <- EitherT.fromEither(validateAttachmentDto(attachmentDto).toEither)
-      _          <- EitherT.liftF(productRep.attach(attachment))
-    } yield attachmentDomainToDto(attachment)
+      attachment <- EitherT.fromEither(validateAttachmentDto(attachmentDto).toEither).leftMap(_.toChain)
+      id         <- EitherT.liftF(productRep.attach(attachment)).leftMap((_: Nothing) => Chain.empty[GeneralError])
+    } yield id
 
     res.value
   }
 
   override def searchByCriteria(
     criteriaDto: CriteriaDto
-  ): F[Either[NonEmptyChain[ValidationError], List[ReadProductDto]]] = {
+  ): F[ErrorsOr[List[ReadProductDto]]] = {
     val res = for {
-      criteria <- EitherT.fromEither(validateCriteriaDto(criteriaDto).toEither)
-      products <- EitherT.liftF(productRep.searchByCriteria(criteria))
+      criteria <- EitherT.fromEither(validateCriteriaDto(criteriaDto).toEither.leftMap(_.toChain))
+      products <- EitherT
+        .liftF(productRep.searchByCriteria(criteria))
+        .leftMap((_: Nothing) => Chain.empty[GeneralError])
     } yield products.map(readProductDomainToDto)
 
     res.value
   }
 
-  private def validateCreateProductDto(productDto: CreateProductDto): ValidatedNec[ValidationError, CreateProduct] = {
-    val price: ValidatedNec[ValidationError, NonNegativeFloat] =
-      refinedValidation(productDto.price, NegativeField("price"))
-    (
-      refinedValidation(productDto.name, EmptyField("name"))(matchesRegexValidate)
-        .asInstanceOf[ValidatedNec[ValidationError, NonEmptyStr]],
-      refinedValidation(productDto.categoryId, InvalidIdFormat("category_id"))(uuidValidate),
-      refinedValidation(productDto.supplierId, InvalidIdFormat("supplier_id"))(uuidValidate),
-      price,
-      productDto.description.traverse(_.validNec)
-    ).mapN(CreateProduct)
-  }
-
-  private def validateUpdateProductDto(dto: UpdateProductDto): ValidatedNec[ValidationError, UpdateProduct] = {
-    val price: ValidatedNec[ValidationError, Option[NonNegativeFloat]] =
-      dto.price.traverse(p => refinedValidation(p, NegativeField("price")))
-    (
-      refinedValidation(dto.id, InvalidIdFormat("id"))(uuidValidate),
-      dto.name
-        .traverse(n => refinedValidation(n, EmptyField("name"))(matchesRegexValidate))
-        .asInstanceOf[ValidatedNec[ValidationError, Option[NonEmptyStr]]],
-      dto.categoryId.traverse(i => refinedValidation(i, InvalidIdFormat("category_id"))(uuidValidate)),
-      dto.supplierId.traverse(i => refinedValidation(i, InvalidIdFormat("supplier_id"))(uuidValidate)),
-      price,
-      dto.description.traverse(_.validNec),
-      dto.status.traverse(_.validNec)
-    ).mapN(UpdateProduct)
-  }
-
-  private def validateAttachmentDto(dto: CreateAttachmentDto): ValidatedNec[ValidationError, CreateAttachment] = {
-    (
-      refinedValidation(dto.attachment, InvalidUrlFormat("attachment"))(urlValidate),
-      refinedValidation(dto.productId, InvalidIdFormat("product_id"))(uuidValidate)
-    ).mapN(CreateAttachment)
-  }
-
-  private def validateCriteriaDto(dto: CriteriaDto): ValidatedNec[ValidationError, Criteria] = {
-    (
-      dto.name.traverse(_.validNec),
-      dto.categoryId.traverse(i => refinedValidation(i, InvalidIdFormat("category_id"))(uuidValidate)),
-      dto.description.traverse(_.validNec),
-      dto.supplierId.traverse(i => refinedValidation(i, InvalidIdFormat("supplier_id"))(uuidValidate)),
-      dto.publicationPeriod
-        .traverse(p => refinedValidation(p, InvalidDateFormat("publication_period"))(matchesRegexValidate))
-        .asInstanceOf[ValidatedNec[ValidationError, Option[DateStr]]]
-    ).mapN(Criteria)
-  }
 }

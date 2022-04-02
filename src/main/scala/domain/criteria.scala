@@ -6,10 +6,11 @@ object criteria {
   // TODO - think how to make some criterias to be optional
 
   final case class Criteria(
-    name:              Option[String],
-    categoryId:        Option[UuidStr],
-    description:       Option[String],
-    supplierId:        Option[UuidStr],
-    publicationPeriod: Option[DateStr]
+    id:                Option[UuidStr]     = None,
+    name:              Option[String]      = None,
+    categoryId:        Option[PositiveInt] = None,
+    description:       Option[String]      = None,
+    supplierId:        Option[PositiveInt] = None,
+    publicationPeriod: Option[DateStr]     = None
   )
 }

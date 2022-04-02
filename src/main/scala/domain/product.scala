@@ -1,17 +1,19 @@
 package domain
 
-import eu.timepit.refined.api.Refined
-import eu.timepit.refined.string._
+import cats.data.Validated.Valid
+import domain.category._
+import domain.supplier._
+import doobie.Read
+import dto.product.ReadProductDto
 import types._
-import supplier._
-import category._
+import util.ModelMapper._
 
 object product {
 
   final case class CreateProduct(
     name:        NonEmptyStr,
-    categoryId:  UuidStr,
-    supplierId:  UuidStr,
+    categoryId:  PositiveInt,
+    supplierId:  PositiveInt,
     price:       NonNegativeFloat,
     description: Option[String]
   )
@@ -28,18 +30,26 @@ object product {
 
   final case class UpdateProduct(
     id:          UuidStr,
-    name:        Option[NonEmptyStr],
-    categoryId:  Option[UuidStr],
-    supplierId:  Option[UuidStr],
-    price:       Option[NonNegativeFloat],
-    description: Option[String],
-    status:      Option[ProductStatus]
+    name:        NonEmptyStr,
+    categoryId:  PositiveInt,
+    supplierId:  PositiveInt,
+    price:       NonNegativeFloat,
+    description: String,
+    status:      ProductStatus
   )
 
   sealed trait ProductStatus
   object ProductStatus {
-    final case object InProcessing extends ProductStatus
+    final case object InProcessing extends ProductStatus {
+      override def toString: String = super.toString
+    }
     final case object Available extends ProductStatus
     final case object NotAvailable extends ProductStatus
+
+    def of(status: String): ProductStatus = status match {
+      case "inProcessing" => InProcessing
+      case "available"    => Available
+      case "notAvailable" => NotAvailable
+    }
   }
 }

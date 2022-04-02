@@ -1,11 +1,11 @@
 package repository
 
-import cats.effect.{Async, Sync}
+import cats.effect.Sync
 import domain.attachment.CreateAttachment
 import domain.criteria.Criteria
+import domain.product._
 import doobie.Transactor
 import repository.impl.DoobieProductRepositoryImpl
-import domain.product._
 
 import java.util.UUID
 
