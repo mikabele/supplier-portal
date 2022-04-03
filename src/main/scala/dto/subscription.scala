@@ -2,10 +2,12 @@ package dto
 
 object subscription {
   final case class SupplierSubscriptionDto(
-    supplierIds: List[String]
+    userId:     String, //temp field
+    supplierId: Int
   )
 
   final case class CategorySubscriptionDto(
-    categoryIds: List[String]
+    userId:     String, //temp field
+    categoryId: Int
   )
 }

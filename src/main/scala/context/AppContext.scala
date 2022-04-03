@@ -1,25 +1,31 @@
 package context
 
 import cats.effect.{Async, Resource}
-import conf.app.AppConf
-import conf.db.{migrator, transactor}
-import controller.ProductController
+import cats.implicits.toSemigroupKOps
 import org.http4s.HttpApp
-import repository.ProductRepository
-import service.ProductService
 
-// TODO - why migrations don't work
+import conf.app._
+import conf.db._
+import controller.{ProductController, SubscriptionController}
+import repository.{ProductRepository, SubscriptionRepository}
+import service.{ProductService, SubscriptionService}
 
 object AppContext {
-  def setUp[F[_]: Async](conf: AppConf): Resource[F, HttpApp[F]] = for {
-    tx <- transactor[F](conf.db)
+  def setUp[F[_]: Async](conf: AppConf): Resource[F, HttpApp[F]] = {
+    for {
+      tx <- transactor[F](conf.db)
 
-    migrator <- Resource.eval(migrator[F](conf.db))
-    _        <- Resource.eval(migrator.migrate())
+      migrator <- Resource.eval(migrator[F](conf.db))
+      _        <- Resource.eval(migrator.migrate())
 
-    productRepository = ProductRepository.of(tx)
-    productService    = ProductService.of(productRepository)
+      productRepository = ProductRepository.of(tx)
+      productService    = ProductService.of(productRepository)
+      productRoutes     = ProductController.routes[F](productService)
 
-    httpApp = ProductController.routes[F](productService).orNotFound
-  } yield httpApp
+      subscriptionRepository = SubscriptionRepository.of(tx)
+      subscriptionService    = SubscriptionService.of[F](subscriptionRepository)
+      subscriptionRoutes     = SubscriptionController.routes[F](subscriptionService)
+
+    } yield (productRoutes <+> subscriptionRoutes).orNotFound
+  }
 }

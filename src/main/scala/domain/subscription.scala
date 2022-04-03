@@ -8,14 +8,12 @@ import category._
 object subscription {
 
   final case class SupplierSubscription(
-    user:      AuthorizedUser,
-    suppliers: List[Supplier],
-    startDate: DateStr
+    userId:     UuidStr,
+    supplierId: PositiveInt
   )
 
   final case class CategorySubscription(
-    user:       AuthorizedUser,
-    categories: List[Category],
-    startDate:  DateStr
+    userId:     UuidStr,
+    categoryId: PositiveInt
   )
 }

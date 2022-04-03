@@ -8,6 +8,8 @@ import doobie.hikari.HikariTransactor
 import doobie.util.ExecutionContexts
 import org.flywaydb.core.Flyway
 
+// TODO - check how to have to migrate changes in sql files , means not to throw exception but migrate
+
 object db {
   def transactor[F[_]: Async](
     dbConf: DbConf

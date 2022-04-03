@@ -13,6 +13,7 @@ import monocle.macros._
 import domain.attachment._
 import domain.criteria.Criteria
 import domain.product._
+import domain.subscription.{CategorySubscription, SupplierSubscription}
 import domain.supplier.Supplier
 import types._
 import util.RefinedValidator.refinedValidation
@@ -20,6 +21,7 @@ import service.error.general.GeneralError
 import dto.attachment._
 import dto.criteria.CriteriaDto
 import dto.product._
+import dto.subscription.{CategorySubscriptionDto, SupplierSubscriptionDto}
 import dto.supplier.SupplierDto
 
 object ModelMapper {
@@ -164,4 +166,25 @@ object ModelMapper {
     ).mapN(Supplier)
   }
 
+  def validateCategorySubscriptionDto(
+    dto: CategorySubscriptionDto
+  ): ValidatedNec[GeneralError, CategorySubscription] = {
+    val userId:     ValidatedNec[GeneralError, UuidStr]     = refinedValidation(dto.userId)
+    val categoryId: ValidatedNec[GeneralError, PositiveInt] = refinedValidation(dto.categoryId)
+    (
+      userId,
+      categoryId
+    ).mapN(CategorySubscription)
+  }
+
+  def validateSupplierSubscriptionDto(
+    dto: SupplierSubscriptionDto
+  ): ValidatedNec[GeneralError, SupplierSubscription] = {
+    val userId:     ValidatedNec[GeneralError, UuidStr]     = refinedValidation(dto.userId)
+    val supplierId: ValidatedNec[GeneralError, PositiveInt] = refinedValidation(dto.supplierId)
+    (
+      userId,
+      supplierId
+    ).mapN(SupplierSubscription)
+  }
 }
