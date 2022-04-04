@@ -8,6 +8,7 @@ import org.http4s.dsl.Http4sDsl
 import org.http4s.{EntityEncoder, Response}
 import service.error.general.{BadRequestError, ErrorsOr, ForbiddenError, GeneralError, NotFoundError}
 import service.error.validation.ValidationError
+import controller.implicits._
 
 object ResponseHandlingUtil {
   def errorsToHttpResponse[F[_]: Concurrent](

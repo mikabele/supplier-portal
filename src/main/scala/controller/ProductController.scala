@@ -11,6 +11,7 @@ import org.http4s.circe.CirceEntityCodec.{circeEntityDecoder, circeEntityEncoder
 import org.http4s.dsl.Http4sDsl
 import service.ProductService
 import util.ResponseHandlingUtil.marshalResponse
+import controller.implicits._ //never delete this row
 
 // TODO - pattern matching via errors works incorrectly - ProductNotFoundError extends BadRequest trait but match/case doesn't think so
 

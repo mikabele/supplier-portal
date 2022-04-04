@@ -9,6 +9,7 @@ import org.http4s.circe.CirceEntityCodec.{circeEntityDecoder, circeEntityEncoder
 import org.http4s.dsl.Http4sDsl
 import service.SubscriptionService
 import util.ResponseHandlingUtil.marshalResponse
+import controller.implicits._
 
 object SubscriptionController {
   def routes[F[_]: Concurrent](subscriptionService: SubscriptionService[F]): HttpRoutes[F] = {

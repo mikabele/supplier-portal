@@ -1,7 +1,6 @@
 package dto
 
 import domain.order.OrderStatus
-import types.UuidStr
 
 object order {
   final case class CreateOrderDto(

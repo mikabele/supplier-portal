@@ -2,16 +2,15 @@ package controller
 
 import cats.effect.kernel.Concurrent
 import cats.implicits._
-import domain.order.OrderStatus
-import dto.order.{CreateOrderDto, UpdateOrderDto}
+import domain.order._
+import dto.order._
 import io.circe.generic.auto._
 import org.http4s.HttpRoutes
 import org.http4s.circe.CirceEntityCodec.{circeEntityDecoder, circeEntityEncoder}
 import org.http4s.dsl.Http4sDsl
 import service.OrderService
 import util.ResponseHandlingUtil.marshalResponse
-
-// TODO - for some reason i can't decode updateorderdto
+import controller.implicits._ // never delete this row
 
 object OrderController {
   def routes[F[_]: Concurrent](orderService: OrderService[F]): HttpRoutes[F] = {
@@ -30,8 +29,8 @@ object OrderController {
     def updateOrder(): HttpRoutes[F] = HttpRoutes.of[F] { case req @ PUT -> Root / "api" / "order" =>
       val test = UpdateOrderDto("a882068c-7920-4471-88cd-5c8c7f806ff9", OrderStatus.Ordered)
       val res = for {
-        //updateDto <- req.as[UpdateOrderDto]
-        result <- orderService.updateOrder(test)
+        updateDto <- req.as[UpdateOrderDto]
+        result    <- orderService.updateOrder(updateDto)
       } yield result
 
       marshalResponse(res)
