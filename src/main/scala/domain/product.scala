@@ -1,12 +1,10 @@
 package domain
 
-import cats.data.Validated.Valid
 import domain.category._
 import domain.supplier._
-import doobie.Read
-import dto.product.ReadProductDto
 import types._
-import util.ModelMapper._
+
+// TODO - add publicationPeriod field in ReadProduct
 
 object product {
 
@@ -40,9 +38,7 @@ object product {
 
   sealed trait ProductStatus
   object ProductStatus {
-    final case object InProcessing extends ProductStatus {
-      override def toString: String = super.toString
-    }
+    final case object InProcessing extends ProductStatus
     final case object Available extends ProductStatus
     final case object NotAvailable extends ProductStatus
 

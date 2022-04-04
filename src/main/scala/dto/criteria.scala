@@ -3,11 +3,11 @@ package dto
 object criteria {
 
   final case class CriteriaDto(
-    id:                Option[String],
-    name:              Option[String],
-    categoryId:        Option[Int],
-    description:       Option[String],
-    supplierId:        Option[Int],
-    publicationPeriod: Option[String]
+    id:                Option[String] = None,
+    name:              Option[String] = None,
+    categoryId:        Option[Int]    = None,
+    description:       Option[String] = None,
+    supplierId:        Option[Int]    = None,
+    publicationPeriod: Option[String] = None
   )
 }

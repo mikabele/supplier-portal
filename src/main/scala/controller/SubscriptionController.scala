@@ -1,22 +1,18 @@
 package controller
 
-import cats.data.Chain
 import cats.effect.kernel.Concurrent
 import cats.implicits._
 import dto.subscription.{CategorySubscriptionDto, SupplierSubscriptionDto}
 import io.circe.generic.auto._
+import org.http4s.HttpRoutes
 import org.http4s.circe.CirceEntityCodec.{circeEntityDecoder, circeEntityEncoder}
 import org.http4s.dsl.Http4sDsl
-import org.http4s.{EntityEncoder, HttpRoutes, Response}
 import service.SubscriptionService
-import service.error.general.{BadRequestError, ErrorsOr, ForbiddenError, GeneralError, NotFoundError}
-import service.error.validation.ValidationError
-
-// TODO - why OK(int) doesn't work
+import util.ResponseHandlingUtil.marshalResponse
 
 object SubscriptionController {
   def routes[F[_]: Concurrent](subscriptionService: SubscriptionService[F]): HttpRoutes[F] = {
-    val dsl = new Http4sDsl[F] {}
+    implicit val dsl: Http4sDsl[F] = new Http4sDsl[F] {}
     import dsl._
 
     def subscribeSupplier(): HttpRoutes[F] = HttpRoutes.of[F] {
@@ -37,28 +33,6 @@ object SubscriptionController {
         } yield result
 
         marshalResponse(res)
-    }
-
-    def errorsToHttpResponse(errors: Chain[GeneralError]): F[Response[F]] = errors.toList.head match {
-      case _: BadRequestError => BadRequest(errors.mkString_("\n"))
-      case _: NotFoundError   => NotFound(errors.mkString_("\n"))
-      case _: ForbiddenError  => Forbidden(errors.mkString_("\n"))
-      case _: ValidationError => BadRequest(errors.mkString_("\n"))
-    }
-
-    def marshalResponse[T](
-      result: F[ErrorsOr[T]]
-    )(
-      implicit E: EntityEncoder[F, T]
-    ): F[Response[F]] = {
-      result
-        .flatMap {
-          case Left(chain)     => errorsToHttpResponse(chain)
-          case Right(response) => Ok(response.toString)
-        }
-        .handleErrorWith { ex =>
-          InternalServerError(ex.getMessage)
-        }
     }
 
     subscribeSupplier() <+> subscribeCategory()

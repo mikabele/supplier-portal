@@ -2,14 +2,14 @@ package service.impl
 
 import cats.Monad
 import cats.data.{Chain, EitherT}
-import cats.implicits.toBifunctorOps
+import cats.syntax.all._
 import dto.subscription._
 import repository.SubscriptionRepository
 import service.SubscriptionService
 import service.error.general.{ErrorsOr, GeneralError}
 import util.ModelMapper._
 
-import java.util.UUID
+// TODO - add SQLException handling when user tried to subscribe the same category/supplier twice
 
 class SubscriptionServiceImpl[F[_]: Monad](subscriptionRepository: SubscriptionRepository[F])
   extends SubscriptionService[F] {

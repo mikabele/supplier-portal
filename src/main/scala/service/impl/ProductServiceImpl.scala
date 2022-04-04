@@ -3,10 +3,6 @@ package service.impl
 import cats.Monad
 import cats.data.{Chain, EitherT}
 import cats.syntax.all._
-import eu.timepit.refined.string.Uuid._
-import java.util.UUID
-
-import domain.criteria.Criteria
 import dto.attachment._
 import dto.criteria.CriteriaDto
 import dto.product._
@@ -15,7 +11,8 @@ import service.ProductService
 import service.error.general.{ErrorsOr, GeneralError}
 import service.error.product.ProductError.ProductNotFound
 import util.ModelMapper._
-import util.RefinedValidator._
+
+import java.util.UUID
 
 class ProductServiceImpl[F[_]: Monad](
   productRep: ProductRepository[F]
@@ -29,22 +26,26 @@ class ProductServiceImpl[F[_]: Monad](
     res.value
   }
 
+  // TODO - remove validation from this method, instead use CriteriaDto and method validateCriteriaDto to get criteria with only one field - id
   override def updateProduct(
     productDto: UpdateProductDto
   ): F[ErrorsOr[UpdateProductDto]] = {
+    val criteriaDto = CriteriaDto(productDto.id.pure[Option])
     val res = for {
-      id      <- EitherT.fromEither(refinedValidation(productDto.id)(uuidValidate).toEither).leftMap(_.toChain)
-      criteria = Criteria(id.pure[Option])
+      criteria <- EitherT.fromEither(validateCriteriaDto(criteriaDto).toEither.leftMap(_.toChain))
       readDomains <- EitherT
         .liftF(productRep.searchByCriteria(criteria))
         .leftMap((_: Nothing) => Chain.empty[GeneralError])
       readDomain <- EitherT.fromOption(
         readDomains.headOption,
-        Chain[GeneralError](ProductNotFound(UUID.fromString(id.value)))
+        Chain[GeneralError](ProductNotFound(UUID.fromString(productDto.id)))
       )
       updateDomain = readToUpdateProduct(readDomain)
-      _           <- EitherT.liftF(productRep.updateProduct(updateDomain)).leftMap((_: Nothing) => Chain.empty[GeneralError])
-    } yield updateProductDomainToDto(updateDomain)
+      mergedDomain <- EitherT.fromEither(
+        mergeUpdateProductDtoWithDomain(productDto, updateDomain).toEither.leftMap(_.toChain)
+      )
+      _ <- EitherT.liftF(productRep.updateProduct(mergedDomain)).leftMap((_: Nothing) => Chain.empty[GeneralError])
+    } yield updateProductDomainToDto(mergedDomain)
 
     res.value
   }

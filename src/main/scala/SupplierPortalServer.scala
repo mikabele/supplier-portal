@@ -9,6 +9,8 @@ import io.circe.generic.auto._
 import scala.concurrent.ExecutionContext
 
 // TODO - logger doesn't work
+// TODO - copy response handling(marshalResponse) in other place (maybe)
+// TODO - fix error pattern matching
 
 object SupplierPortalServer extends IOApp {
   override def run(args: List[String]): IO[ExitCode] =

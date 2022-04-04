@@ -12,8 +12,8 @@ import repository.SubscriptionRepository
 
 class DoobieSubscriptionRepositoryImpl[F[_]: Sync](tx: Transactor[F]) extends SubscriptionRepository[F] {
 
-  val subscribeCategoryQuery = fr"INSERT INTO category_subscription VALUES "
-  val subscribeSupplierQuery = fr"INSERT INTO supplier_subscription VALUES "
+  private val subscribeCategoryQuery = fr"INSERT INTO category_subscription VALUES "
+  private val subscribeSupplierQuery = fr"INSERT INTO supplier_subscription VALUES "
 
   override def subscribeCategory(category: CategorySubscription): F[Int] = {
     (subscribeCategoryQuery ++ fr"(${category.categoryId}, ${category.userId}::UUID)").update.run

@@ -2,6 +2,8 @@ package domain
 
 import types._
 
+// TODO - when will work on it don't forget about password encryption(encoding)
+
 object user {
 
   sealed trait Role

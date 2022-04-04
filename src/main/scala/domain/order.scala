@@ -1,27 +1,41 @@
 package domain
 
-import domain.user.AuthorizedUser
 import types._
-import product._
+
+// TODO - reimplement OrderStatus and all other enums with Enumeration and doobie support
 
 object order {
-  final case class Order(
+  final case class CreateOrder(
+    userId:     UuidStr,
+    orderItems: List[OrderItem]
+  )
+
+  final case class UpdateOrder(
+    id:          UuidStr,
+    orderStatus: OrderStatus
+  )
+
+  final case class ReadOrder(
     id:               UuidStr,
-    user:             AuthorizedUser,
-    total:            NonNegativeFloat,
-    status:           OrderStatus,
     orderItems:       List[OrderItem],
-    orderedStartDate: DateStr
+    orderStatus:      OrderStatus,
+    orderedStartDate: DateStr,
+    total:            NonNegativeFloat
   )
 
   sealed trait OrderStatus
   object OrderStatus {
     final case object Canceled extends OrderStatus
-    final case object Delivered extends OrderStatus
+    final case object Ordered extends OrderStatus
+
+    def of(status: String): OrderStatus = status match {
+      case "canceled" => Canceled
+      case "ordered"  => Ordered
+    }
   }
 
   final case class OrderItem(
-    product: Product,
-    count:   PositiveInt
+    productId: UuidStr,
+    count:     PositiveInt
   )
 }

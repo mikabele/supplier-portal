@@ -9,9 +9,9 @@ import eu.timepit.refined.string.Uuid.uuidValidate
 import monocle._
 import monocle.refined._
 import monocle.macros._
-
 import domain.attachment._
 import domain.criteria.Criteria
+import domain.order.{CreateOrder, OrderItem, ReadOrder, UpdateOrder}
 import domain.product._
 import domain.subscription.{CategorySubscription, SupplierSubscription}
 import domain.supplier.Supplier
@@ -20,13 +20,13 @@ import util.RefinedValidator.refinedValidation
 import service.error.general.GeneralError
 import dto.attachment._
 import dto.criteria.CriteriaDto
+import dto.order.{CreateOrderDto, OrderItemDto, ReadOrderDto, UpdateOrderDto}
 import dto.product._
 import dto.subscription.{CategorySubscriptionDto, SupplierSubscriptionDto}
 import dto.supplier.SupplierDto
 
 object ModelMapper {
-  // TODO - read about scalaland lib
-  // TODO - find out how to deal with Refined And ScalaLAnd at the same time
+  // TODO - find out how to make isomorphism between Dto and Domain (refined supported)
 
   def createProductDomainToDto(product: CreateProduct): CreateProductDto = {
 //    val domainFields = GenIso.fields[CreateProduct]
@@ -186,5 +186,44 @@ object ModelMapper {
       userId,
       supplierId
     ).mapN(SupplierSubscription)
+  }
+
+  def validateOrderItemDto(dto: OrderItemDto): ValidatedNec[GeneralError, OrderItem] = {
+    val id:    ValidatedNec[GeneralError, UuidStr]     = refinedValidation(dto.productId)
+    val count: ValidatedNec[GeneralError, PositiveInt] = refinedValidation(dto.count)
+    (
+      id,
+      count
+    ).mapN(OrderItem)
+  }
+
+  def validateCreateOrderDto(dto: CreateOrderDto): ValidatedNec[GeneralError, CreateOrder] = {
+    val id:         ValidatedNec[GeneralError, UuidStr]         = refinedValidation(dto.userId)
+    val orderItems: ValidatedNec[GeneralError, List[OrderItem]] = dto.orderItems.traverse(validateOrderItemDto)
+    (
+      id,
+      orderItems
+    ).mapN(CreateOrder)
+  }
+
+  def orderItemDomainToDto(domain: OrderItem): OrderItemDto = {
+    OrderItemDto(domain.productId.value, domain.count.value)
+  }
+
+  def readOrderDomainToDto(domain: ReadOrder): ReadOrderDto = {
+    val orderItems = domain.orderItems.map(orderItemDomainToDto)
+    ReadOrderDto(domain.id.value, orderItems, domain.orderStatus, domain.orderedStartDate.value, domain.total.value)
+  }
+
+  def updateOrderDomainToDto(domain: UpdateOrder): UpdateOrderDto = {
+    UpdateOrderDto(domain.id.value, domain.orderStatus)
+  }
+
+  def validateUpdateOrderDto(dto: UpdateOrderDto): ValidatedNec[GeneralError, UpdateOrder] = {
+    val id: ValidatedNec[GeneralError, UuidStr] = refinedValidation(dto.id)
+    (
+      id,
+      dto.orderStatus.validNec
+    ).mapN(UpdateOrder)
   }
 }
