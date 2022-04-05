@@ -4,7 +4,7 @@ import cats.data.Validated.Valid
 import doobie.{Read, Write}
 import types._
 import util.CaseConversionUtil._
-import doobie.refined.implicits._
+import doobie.refined.implicits._ // never delete this row
 import domain.category.Category
 import domain.order.{OrderItem, OrderStatus, ReadOrder}
 import domain.product.{ProductStatus, ReadProduct}
@@ -29,9 +29,9 @@ package object implicits {
   implicit val writeCategory: Write[Category] = Write[Int].contramap(c => c.id)
 
   implicit def readProductRead: Read[ReadProduct] =
-    Read[(UuidStr, NonEmptyStr, Category, Supplier, NonNegativeFloat, String, ProductStatus)]
-      .map { case (product_id, product_name, category, supplier, price, description, status) =>
-        ReadProduct(product_id, product_name, category, supplier, price, description, status)
+    Read[(UuidStr, NonEmptyStr, Category, Supplier, NonNegativeFloat, String, ProductStatus, DateStr)]
+      .map { case (product_id, product_name, category, supplier, price, description, status, publicationPeriod) =>
+        ReadProduct(product_id, product_name, category, supplier, price, description, status, publicationPeriod)
       }
 
   implicit def readOrderRead: Read[ReadOrder] =
@@ -51,4 +51,9 @@ package object implicits {
 
   implicit val writeOrderItem: Write[OrderItem] =
     Write[(String, Int)].contramap(oi => (oi.productId.value, oi.count.value))
+
+  implicit def supplierRead: Read[Supplier] = Read[(PositiveInt, NonEmptyStr, NonEmptyStr)]
+    .map { case (id, name, address) =>
+      Supplier(id, name, address)
+    }
 }

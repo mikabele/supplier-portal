@@ -9,11 +9,12 @@ import doobie.postgres.implicits._
 import doobie.util.fragments._
 
 import java.util.UUID
-import doobie.refined.implicits._
+import doobie.refined.implicits._ //never delete this row
 import repository.OrderRepository
 import domain.order._
 import types._
 import repository.impl.implicits._ //never delete this row
+import doobie.hi._
 
 // TODO - read how to use \" in fragments to use reserved keywords in queries UPD: right now i need to use full path to table
 // TODO - try to use object type in postgres
@@ -41,7 +42,7 @@ class DoobieOrderRepositoryImpl[F[_]: Sync](tx: Transactor[F]) extends OrderRepo
       .transact(tx)
   }
 
-  // TODO - create stored procedure for this purpose
+  // TODO - create transaction inside function
 
   override def createOrder(domain: CreateOrder): F[UUID] = {
     (callCreateOrderFunction ++ fr"${domain.userId}::UUID,${domain.orderItems

@@ -1,18 +1,20 @@
 package repository.impl
 
+import cats.data.NonEmptyList
 import cats.effect.Sync
-import doobie.Transactor
-import doobie.implicits._
-import doobie.postgres.implicits._
-import doobie.util.fragments._
-import java.util.UUID
-import doobie.refined.implicits._ // never delete this row
-
 import domain.attachment._
 import domain.criteria._
 import domain.product._
+import doobie.Transactor
+import doobie.implicits._
+import doobie.postgres.implicits._
+import doobie.refined.implicits._ // never delete this row
+import doobie.util.fragments._
 import repository.ProductRepository
 import repository.impl.implicits._
+import types.UuidStr
+
+import java.util.UUID
 
 class DoobieProductRepositoryImpl[F[_]: Sync](tx: Transactor[F]) extends ProductRepository[F] {
 
@@ -20,7 +22,7 @@ class DoobieProductRepositoryImpl[F[_]: Sync](tx: Transactor[F]) extends Product
   private val updateProductQuery = fr"UPDATE product "
   private val deleteProductQuery = fr"DELETE FROM product "
   private val getProductsQuery =
-    fr"SELECT p.id, p.name, p.category_id, s.id, s.name, s.address, p.price, p.description, p.status " ++
+    fr"SELECT p.id, p.name, p.category_id, s.id, s.name, s.address, p.price, p.description, p.status,p.publication_period " ++
       fr"FROM product AS p " ++
       fr"INNER JOIN supplier AS s " ++
       fr"ON p.supplier_id = s.id "
@@ -66,16 +68,22 @@ class DoobieProductRepositoryImpl[F[_]: Sync](tx: Transactor[F]) extends Product
   }
 
   override def searchByCriteria(criteria: Criteria): F[List[ReadProduct]] = {
-    (getProductsQuery ++ whereAndOpt(
-      criteria.id.map(value => fr"p.id = $value::UUID"),
-      criteria.name.map(value => fr"p.name = $value"),
-      criteria.categoryId.map(value => fr"p.category_id = $value"),
-      criteria.description.map(value => fr"p.description = $value"),
-      criteria.supplierId.map(value => fr"p.supplier_id = $value"),
-      criteria.publicationPeriod.map(value => fr"p.publication_period = $value")
+    (getProductsQuery ++ fr" INNER JOIN category AS c ON c.id=p.category_id " ++ whereAndOpt(
+      criteria.name.map(value => fr"p.name LIKE $value"),
+      criteria.categoryName.map(value => fr"c.name LIKE $value"),
+      criteria.description.map(value => fr"p.description LIKE $value"),
+      criteria.supplierName.map(value => fr"s.name LIKE $value"),
+      criteria.status.map(value => fr"p.status = $value::PRODUCT_STATUS"),
+      criteria.startDate.map(value => fr"p.publication_period >= $value::DATE"),
+      criteria.endDate.map(value => fr"p.publication_period < $value::DATE")
     ))
       .query[ReadProduct]
       .to[List]
       .transact(tx)
+  }
+
+  override def getByIds(ids: NonEmptyList[UuidStr]): F[List[ReadProduct]] = {
+    val modifiedIds = ids.map(id => UUID.fromString(id.value))
+    (getProductsQuery ++ whereAnd(in(fr"p.id", modifiedIds))).query[ReadProduct].to[List].transact(tx)
   }
 }

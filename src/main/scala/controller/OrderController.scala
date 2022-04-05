@@ -27,7 +27,6 @@ object OrderController {
     }
 
     def updateOrder(): HttpRoutes[F] = HttpRoutes.of[F] { case req @ PUT -> Root / "api" / "order" =>
-      val test = UpdateOrderDto("a882068c-7920-4471-88cd-5c8c7f806ff9", OrderStatus.Ordered)
       val res = for {
         updateDto <- req.as[UpdateOrderDto]
         result    <- orderService.updateOrder(updateDto)

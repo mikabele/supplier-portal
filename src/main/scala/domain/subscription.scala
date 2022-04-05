@@ -1,9 +1,6 @@
 package domain
 
-import user._
 import types._
-import supplier._
-import category._
 
 object subscription {
 

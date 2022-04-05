@@ -13,7 +13,7 @@ import service.ProductService
 import util.ResponseHandlingUtil.marshalResponse
 import controller.implicits._ //never delete this row
 
-// TODO - pattern matching via errors works incorrectly - ProductNotFoundError extends BadRequest trait but match/case doesn't think so
+// TODO - add tests (functional tests). Start server -> Http4s client -> assert /should be.
 
 object ProductController {
 
@@ -63,16 +63,15 @@ object ProductController {
       marshalResponse(res)
     }
 
-    def searchByCriteria(): HttpRoutes[F] = HttpRoutes.of[F] {
-      case req @ POST -> Root / "api" / "product" / "search_by" =>
-        val res = for {
-          criteria <- req.as[CriteriaDto]
-          result   <- productService.searchByCriteria(criteria)
-        } yield result
+    def search(): HttpRoutes[F] = HttpRoutes.of[F] { case req @ POST -> Root / "api" / "product" / "search" =>
+      val res = for {
+        criteria <- req.as[CriteriaDto]
+        result   <- productService.searchByCriteria(criteria)
+      } yield result
 
-        marshalResponse(res)
+      marshalResponse(res)
     }
 
-    addProduct() <+> updateProduct() <+> deleteProduct <+> viewProducts <+> attachToProduct <+> searchByCriteria
+    addProduct() <+> updateProduct() <+> deleteProduct <+> viewProducts <+> attachToProduct <+> search
   }
 }

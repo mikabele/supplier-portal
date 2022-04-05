@@ -4,8 +4,6 @@ import domain.category._
 import domain.supplier._
 import types._
 
-// TODO - add publicationPeriod field in ReadProduct
-
 object product {
 
   final case class CreateProduct(
@@ -17,13 +15,14 @@ object product {
   )
 
   final case class ReadProduct(
-    id:          UuidStr,
-    name:        NonEmptyStr,
-    category:    Category,
-    supplier:    Supplier,
-    price:       NonNegativeFloat,
-    description: String,
-    status:      ProductStatus
+    id:                UuidStr,
+    name:              NonEmptyStr,
+    category:          Category,
+    supplier:          Supplier,
+    price:             NonNegativeFloat,
+    description:       String,
+    status:            ProductStatus,
+    publicationPeriod: DateStr
   )
 
   final case class UpdateProduct(

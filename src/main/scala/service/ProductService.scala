@@ -1,13 +1,11 @@
 package service
 
-import cats.data.{Chain, NonEmptyChain}
 import cats.effect.kernel.Sync
 import dto.attachment.CreateAttachmentDto
 import dto.criteria.CriteriaDto
 import dto.product.{CreateProductDto, ReadProductDto, UpdateProductDto}
 import repository.ProductRepository
 import service.error.general.ErrorsOr
-import service.error.validation.ValidationError
 import service.impl.ProductServiceImpl
 
 import java.util.UUID

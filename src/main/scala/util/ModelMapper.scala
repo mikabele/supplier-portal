@@ -1,6 +1,5 @@
 package util
 
-import cats.data.Validated.Valid
 import cats.data.ValidatedNec
 import cats.implicits._
 import eu.timepit.refined.string.MatchesRegex.matchesRegexValidate
@@ -45,12 +44,12 @@ object ModelMapper {
   def updateProductDomainToDto(product: UpdateProduct): UpdateProductDto = {
     UpdateProductDto(
       product.id.value,
-      product.name.value.pure[Option],
-      product.categoryId.value.pure[Option],
-      product.supplierId.value.pure[Option],
-      product.price.value.pure[Option],
-      product.description.pure[Option],
-      product.status.pure[Option]
+      product.name.value,
+      product.categoryId.value,
+      product.supplierId.value,
+      product.price.value,
+      product.description,
+      product.status
     )
   }
 
@@ -62,7 +61,8 @@ object ModelMapper {
       supplierDomainToDto(product.supplier),
       product.price.value,
       product.description,
-      product.status
+      product.status,
+      product.publicationPeriod.value
     )
   }
 
@@ -81,21 +81,6 @@ object ModelMapper {
     )
   }
 
-  def readToUpdateProduct(readDomain: ReadProduct): UpdateProduct = {
-    val categoryId = (refinedValidation(readDomain.category.id): ValidatedNec[GeneralError, PositiveInt]) match {
-      case Valid(a) => a
-    }
-    UpdateProduct(
-      readDomain.id,
-      readDomain.name,
-      categoryId,
-      readDomain.supplier.id,
-      readDomain.price,
-      readDomain.description,
-      readDomain.status
-    )
-  }
-
   def validateCreateProductDto(productDto: CreateProductDto): ValidatedNec[GeneralError, CreateProduct] = {
     val price: ValidatedNec[GeneralError, NonNegativeFloat] =
       refinedValidation(productDto.price)
@@ -111,22 +96,20 @@ object ModelMapper {
     ).mapN(CreateProduct)
   }
 
-  def mergeUpdateProductDtoWithDomain(
-    dto:    UpdateProductDto,
-    domain: UpdateProduct
-  ): ValidatedNec[GeneralError, UpdateProduct] = {
-    val price:    Option[ValidatedNec[GeneralError, NonNegativeFloat]] = dto.price.map(i => refinedValidation(i))
-    val name:     Option[ValidatedNec[GeneralError, NonEmptyStr]]      = dto.name.map(i => refinedValidation(i))
-    val category: Option[ValidatedNec[GeneralError, PositiveInt]]      = dto.categoryId.map(i => refinedValidation(i))
-    val supplier: Option[ValidatedNec[GeneralError, PositiveInt]]      = dto.supplierId.map(i => refinedValidation(i))
+  def validateUpdateProductDto(dto: UpdateProductDto): ValidatedNec[GeneralError, UpdateProduct] = {
+    val id:         ValidatedNec[GeneralError, UuidStr]          = refinedValidation(dto.id)
+    val name:       ValidatedNec[GeneralError, NonEmptyStr]      = refinedValidation(dto.name)
+    val categoryId: ValidatedNec[GeneralError, PositiveInt]      = refinedValidation(dto.categoryId)
+    val supplierId: ValidatedNec[GeneralError, PositiveInt]      = refinedValidation(dto.supplierId)
+    val price:      ValidatedNec[GeneralError, NonNegativeFloat] = refinedValidation(dto.price)
     (
-      domain.id.validNec,
-      name.getOrElse(domain.name.validNec),
-      category.getOrElse(domain.categoryId.validNec),
-      supplier.getOrElse(domain.supplierId.validNec),
-      price.getOrElse(domain.price.validNec),
-      dto.description.getOrElse(domain.description).validNec,
-      dto.status.getOrElse(domain.status).validNec
+      id,
+      name,
+      categoryId,
+      supplierId,
+      price,
+      dto.description.validNec,
+      dto.status.validNec
     ).mapN(UpdateProduct)
   }
 
@@ -138,20 +121,16 @@ object ModelMapper {
   }
 
   def validateCriteriaDto(dto: CriteriaDto): ValidatedNec[GeneralError, Criteria] = {
-    val publicationPeriod: ValidatedNec[GeneralError, Option[DateStr]] = dto.publicationPeriod
-      .traverse(p => refinedValidation(p))
-    val category: ValidatedNec[GeneralError, Option[PositiveInt]] =
-      dto.categoryId.traverse(i => refinedValidation(i))
-    val supplier: ValidatedNec[GeneralError, Option[PositiveInt]] =
-      dto.supplierId.traverse(i => refinedValidation(i))
-    val id: ValidatedNec[GeneralError, Option[UuidStr]] = dto.id.traverse(i => refinedValidation(i))
+    val startDate: ValidatedNec[GeneralError, Option[DateStr]] = dto.startDate.traverse(p => refinedValidation(p))
+    val endDate:   ValidatedNec[GeneralError, Option[DateStr]] = dto.endDate.traverse(p => refinedValidation(p))
     (
-      id,
       dto.name.traverse(_.validNec),
-      category,
+      dto.categoryName.traverse(_.validNec),
       dto.description.traverse(_.validNec),
-      supplier,
-      publicationPeriod
+      dto.supplierName.traverse(_.validNec),
+      dto.status.validNec,
+      startDate,
+      endDate
     ).mapN(Criteria)
   }
 

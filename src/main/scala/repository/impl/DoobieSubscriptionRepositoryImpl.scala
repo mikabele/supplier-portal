@@ -5,7 +5,6 @@ import doobie.implicits._
 import doobie.postgres.implicits._
 import doobie.util.transactor.Transactor
 import doobie.refined.implicits._ // never delete this row
-import java.util.UUID
 
 import domain.subscription._
 import repository.SubscriptionRepository

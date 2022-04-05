@@ -16,21 +16,22 @@ object product {
 
   final case class UpdateProductDto(
     id:          String,
-    name:        Option[String],
-    categoryId:  Option[Int],
-    supplierId:  Option[Int],
-    price:       Option[Float],
-    description: Option[String],
-    status:      Option[ProductStatus]
-  )
-
-  final case class ReadProductDto(
-    id:          String,
     name:        String,
-    category:    Category,
-    supplier:    SupplierDto,
+    categoryId:  Int,
+    supplierId:  Int,
     price:       Float,
     description: String,
     status:      ProductStatus
+  )
+
+  final case class ReadProductDto(
+    id:                String,
+    name:              String,
+    category:          Category,
+    supplier:          SupplierDto,
+    price:             Float,
+    description:       String,
+    status:            ProductStatus,
+    publicationPeriod: String
   )
 }

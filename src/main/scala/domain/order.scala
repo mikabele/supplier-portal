@@ -10,6 +10,9 @@ object order {
     orderItems: List[OrderItem]
   )
 
+  // TODO - rename class
+  final case class CreateOrderItem()
+
   final case class UpdateOrder(
     id:          UuidStr,
     orderStatus: OrderStatus

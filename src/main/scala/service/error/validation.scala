@@ -7,10 +7,10 @@ import service.error.general.{BadRequestError, GeneralError}
 
 object validation {
 
-  sealed trait ValidationError extends BadRequestError
+  sealed trait ValidationError extends GeneralError
   object ValidationError {
 
-    final case class InvalidFieldFormat(refinedError: String) extends ValidationError {
+    final case class InvalidFieldFormat(refinedError: String) extends ValidationError with BadRequestError {
       override def message: String = s"Invalid field format - $refinedError"
     }
 

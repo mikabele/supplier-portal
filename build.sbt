@@ -43,7 +43,8 @@ libraryDependencies ++= Seq(
   "org.slf4j"                   % "slf4j-nop"              % "1.7.36",
   "com.github.julien-truffaut" %% "monocle-core"           % monocleVersion,
   "com.github.julien-truffaut" %% "monocle-refined"        % monocleVersion,
-  "com.github.julien-truffaut" %% "monocle-macro"          % monocleVersion
+  "com.github.julien-truffaut" %% "monocle-macro"          % monocleVersion,
+  "org.scalatest"              %% "scalatest"              % "3.2.11" % "test"
 )
 
 addCompilerPlugin(

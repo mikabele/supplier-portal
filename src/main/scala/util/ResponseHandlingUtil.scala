@@ -2,10 +2,10 @@ package util
 
 import cats.data.Chain
 import cats.effect.kernel.Concurrent
-import cats.implicits._
+import cats.syntax.all._
 import org.http4s.circe.CirceEntityCodec.circeEntityEncoder
 import org.http4s.dsl.Http4sDsl
-import org.http4s.{EntityEncoder, Response}
+import org.http4s.{EntityEncoder, InvalidMessageBodyFailure, Response}
 import service.error.general.{BadRequestError, ErrorsOr, ForbiddenError, GeneralError, NotFoundError}
 import service.error.validation.ValidationError
 import controller.implicits._
@@ -17,11 +17,13 @@ object ResponseHandlingUtil {
     implicit dsl: Http4sDsl[F]
   ): F[Response[F]] = {
     import dsl._
+    val errorsString = errors.map(_.message).toList.fold("")(_ |+| _ |+| "\n")
     errors.toList.head match {
-      case _: BadRequestError => BadRequest(errors.mkString_("\n"))
-      case _: NotFoundError   => NotFound(errors.mkString_("\n"))
-      case _: ForbiddenError  => Forbidden(errors.mkString_("\n"))
-      case _: ValidationError => BadRequest(errors.mkString_("\n"))
+      case _: BadRequestError => BadRequest(errorsString)
+      case _: NotFoundError   => NotFound(errorsString)
+      case _: ForbiddenError  => Forbidden(errorsString)
+      case _: ValidationError => BadRequest(errorsString)
+      case _ => BadRequest(errorsString)
     }
   }
 
@@ -37,8 +39,9 @@ object ResponseHandlingUtil {
         case Left(chain)     => errorsToHttpResponse(chain)
         case Right(response) => Ok(response)
       }
-      .handleErrorWith { ex =>
-        InternalServerError(ex.getMessage)
+      .handleErrorWith {
+        case e: InvalidMessageBodyFailure => BadRequest(e.getMessage())
+        case ex => InternalServerError(ex.getMessage)
       }
   }
 }

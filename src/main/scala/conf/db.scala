@@ -8,7 +8,7 @@ import doobie.hikari.HikariTransactor
 import doobie.util.ExecutionContexts
 import org.flywaydb.core.Flyway
 
-// TODO - check how to have to migrate changes in sql files , means not to throw exception but migrate
+// TODO - check how to migrate changes from sqk files if checksum was changed
 
 object db {
   def transactor[F[_]: Async](

@@ -1,7 +1,7 @@
 package service.impl
 
 import cats.Monad
-import cats.data.{Chain, EitherT}
+import cats.data.{Chain, EitherT, NonEmptyList}
 import cats.syntax.all._
 import dto.attachment._
 import dto.criteria.CriteriaDto
@@ -26,26 +26,16 @@ class ProductServiceImpl[F[_]: Monad](
     res.value
   }
 
-  // TODO - remove validation from this method, instead use CriteriaDto and method validateCriteriaDto to get criteria with only one field - id
   override def updateProduct(
     productDto: UpdateProductDto
   ): F[ErrorsOr[UpdateProductDto]] = {
-    val criteriaDto = CriteriaDto(productDto.id.pure[Option])
     val res = for {
-      criteria <- EitherT.fromEither(validateCriteriaDto(criteriaDto).toEither.leftMap(_.toChain))
-      readDomains <- EitherT
-        .liftF(productRep.searchByCriteria(criteria))
-        .leftMap((_: Nothing) => Chain.empty[GeneralError])
-      readDomain <- EitherT.fromOption(
-        readDomains.headOption,
-        Chain[GeneralError](ProductNotFound(UUID.fromString(productDto.id)))
+      domain <- EitherT.fromEither(validateUpdateProductDto(productDto).toEither.leftMap(_.toChain))
+      count  <- EitherT.liftF(productRep.updateProduct(domain)).leftMap((_: Nothing) => Chain.empty[GeneralError])
+      _ <- EitherT.fromEither(
+        Either.cond(count > 0, count, Chain[GeneralError](ProductNotFound(UUID.fromString(domain.id.value))))
       )
-      updateDomain = readToUpdateProduct(readDomain)
-      mergedDomain <- EitherT.fromEither(
-        mergeUpdateProductDtoWithDomain(productDto, updateDomain).toEither.leftMap(_.toChain)
-      )
-      _ <- EitherT.liftF(productRep.updateProduct(mergedDomain)).leftMap((_: Nothing) => Chain.empty[GeneralError])
-    } yield updateProductDomainToDto(mergedDomain)
+    } yield updateProductDomainToDto(domain)
 
     res.value
   }
@@ -71,7 +61,17 @@ class ProductServiceImpl[F[_]: Monad](
   ): F[ErrorsOr[UUID]] = {
     val res = for {
       attachment <- EitherT.fromEither(validateAttachmentDto(attachmentDto).toEither).leftMap(_.toChain)
-      id         <- EitherT.liftF(productRep.attach(attachment)).leftMap((_: Nothing) => Chain.empty[GeneralError])
+      products <- EitherT
+        .liftF(productRep.getByIds(NonEmptyList.of(attachment.productId)))
+        .leftMap((_: Nothing) => Chain.empty[GeneralError])
+      _ <- EitherT.fromEither(
+        Either.cond(
+          products.nonEmpty,
+          products,
+          Chain[GeneralError](ProductNotFound(UUID.fromString(attachment.productId.value)))
+        )
+      )
+      id <- EitherT.liftF(productRep.attach(attachment)).leftMap((_: Nothing) => Chain.empty[GeneralError])
     } yield id
 
     res.value
@@ -89,5 +89,4 @@ class ProductServiceImpl[F[_]: Monad](
 
     res.value
   }
-
 }

@@ -1,7 +1,5 @@
 package conf
 
-import io.circe.generic.JsonCodec
-
 object app {
 
   final case class AppConf(
