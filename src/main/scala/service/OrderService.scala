@@ -2,7 +2,7 @@ package service
 
 import cats.effect.kernel.Sync
 import dto.order._
-import repository.OrderRepository
+import repository.{OrderRepository, ProductRepository}
 import service.error.general.ErrorsOr
 import service.impl.OrderServiceImpl
 
@@ -17,7 +17,7 @@ trait OrderService[F[_]] {
 }
 
 object OrderService {
-  def of[F[_]: Sync](orderRepository: OrderRepository[F]): OrderService[F] = {
-    new OrderServiceImpl[F](orderRepository)
+  def of[F[_]: Sync](orderRepository: OrderRepository[F], productRepository: ProductRepository[F]): OrderService[F] = {
+    new OrderServiceImpl[F](orderRepository, productRepository)
   }
 }

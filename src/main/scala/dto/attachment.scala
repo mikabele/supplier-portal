@@ -6,4 +6,9 @@ object attachment {
     attachment: String,
     productId:  String
   )
+
+  final case class ReadAttachmentDto(
+    id:         String,
+    attachment: String
+  )
 }

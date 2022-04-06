@@ -2,13 +2,14 @@ package dto
 
 import domain.category.Category
 import domain.product.ProductStatus
+import dto.attachment.ReadAttachmentDto
 import dto.supplier.SupplierDto
 
 object product {
 
   final case class CreateProductDto(
     name:        String,
-    categoryId:  Int,
+    category:    Category,
     supplierId:  Int,
     price:       Float,
     description: Option[String]
@@ -17,7 +18,7 @@ object product {
   final case class UpdateProductDto(
     id:          String,
     name:        String,
-    categoryId:  Int,
+    category:    Category,
     supplierId:  Int,
     price:       Float,
     description: String,
@@ -32,6 +33,7 @@ object product {
     price:             Float,
     description:       String,
     status:            ProductStatus,
-    publicationPeriod: String
+    publicationPeriod: String,
+    attachments:       List[ReadAttachmentDto]
   )
 }

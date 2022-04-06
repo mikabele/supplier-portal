@@ -39,9 +39,6 @@ object ResponseHandlingUtil {
         case Left(chain)     => errorsToHttpResponse(chain)
         case Right(response) => Ok(response)
       }
-      .handleErrorWith {
-        case e: InvalidMessageBodyFailure => BadRequest(e.getMessage())
-        case ex => InternalServerError(ex.getMessage)
-      }
+      .handleErrorWith(ex => InternalServerError(ex.getMessage))
   }
 }

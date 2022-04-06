@@ -1,7 +1,9 @@
 package controller
 
-import cats.effect.kernel.Concurrent
-import cats.implicits._
+import cats.{Applicative, Monad}
+import cats.data.{Chain, EitherT}
+import cats.effect.{Async, Concurrent, Sync}
+import cats.syntax.all._
 import dto.attachment._
 import dto.criteria._
 import dto.product._
@@ -11,7 +13,11 @@ import org.http4s.circe.CirceEntityCodec.{circeEntityDecoder, circeEntityEncoder
 import org.http4s.dsl.Http4sDsl
 import service.ProductService
 import util.ResponseHandlingUtil.marshalResponse
-import controller.implicits._ //never delete this row
+import controller.implicits._
+import service.error.general.{ErrorsOr, GeneralError}
+import service.error.validation.ValidationError.InvalidJsonFormat
+
+import scala.util.Try
 
 // TODO - add tests (functional tests). Start server -> Http4s client -> assert /should be.
 
@@ -23,20 +29,30 @@ object ProductController {
 
     def addProduct(): HttpRoutes[F] = HttpRoutes.of[F] { case req @ POST -> Root / "api" / "product" =>
       val res = for {
-        product <- req.as[CreateProductDto]
-        result  <- productService.addProduct(product)
+        product <- EitherT(
+          req
+            .as[CreateProductDto]
+            .attempt
+        ).leftMap(ex => Chain[GeneralError](InvalidJsonFormat(ex.getMessage)))
+        result <- EitherT(productService.addProduct(product))
       } yield result
 
-      marshalResponse(res)
+      marshalResponse(res.value)
     }
 
     def updateProduct(): HttpRoutes[F] = HttpRoutes.of[F] { case req @ PUT -> Root / "api" / "product" =>
       val res = for {
-        product <- req.as[UpdateProductDto]
-        result  <- productService.updateProduct(product)
+        product <-
+          EitherT(
+            req
+              .as[UpdateProductDto]
+              .attempt
+          ).leftMap(ex => Chain[GeneralError](InvalidJsonFormat(ex.getMessage)))
+
+        result <- EitherT(productService.updateProduct(product))
       } yield result
 
-      marshalResponse(res)
+      marshalResponse(res.value)
     }
 
     def deleteProduct(): HttpRoutes[F] = HttpRoutes.of[F] { case DELETE -> Root / "api" / "product" / UUIDVar(id) =>
@@ -54,24 +70,42 @@ object ProductController {
       } yield response
     }
 
-    def attachToProduct(): HttpRoutes[F] = HttpRoutes.of[F] { case req @ POST -> Root / "api" / "product" / "attach" =>
-      val res = for {
-        attachment <- req.as[CreateAttachmentDto]
-        result     <- productService.attach(attachment)
-      } yield result
+    def attachToProduct(): HttpRoutes[F] = HttpRoutes.of[F] {
+      case req @ POST -> Root / "api" / "product" / "attachment" =>
+        val res = for {
+          attachment <- EitherT(
+            req
+              .as[CreateAttachmentDto]
+              .attempt
+          ).leftMap(ex => Chain[GeneralError](InvalidJsonFormat(ex.getMessage)))
+          result <- EitherT(productService.attach(attachment))
+        } yield result
 
-      marshalResponse(res)
+        marshalResponse(res.value)
+    }
+
+    def removeAttachment(): HttpRoutes[F] = HttpRoutes.of[F] {
+      case DELETE -> Root / "api" / "product" / "attachment" / UUIDVar(id) =>
+        val res = for {
+          result <- productService.removeAttachment(id)
+        } yield result
+
+        marshalResponse(res)
     }
 
     def search(): HttpRoutes[F] = HttpRoutes.of[F] { case req @ POST -> Root / "api" / "product" / "search" =>
       val res = for {
-        criteria <- req.as[CriteriaDto]
-        result   <- productService.searchByCriteria(criteria)
+        criteria <- EitherT(
+          req
+            .as[CriteriaDto]
+            .attempt
+        ).leftMap(ex => Chain[GeneralError](InvalidJsonFormat(ex.getMessage)))
+        result <- EitherT(productService.searchByCriteria(criteria))
       } yield result
 
-      marshalResponse(res)
+      marshalResponse(res.value)
     }
 
-    addProduct() <+> updateProduct() <+> deleteProduct <+> viewProducts <+> attachToProduct <+> search
+    addProduct() <+> updateProduct() <+> deleteProduct <+> viewProducts <+> attachToProduct <+> search <+> removeAttachment()
   }
 }

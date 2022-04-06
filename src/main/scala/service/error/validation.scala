@@ -1,9 +1,7 @@
 package service.error
 
-import cats.data.ValidatedNec
+import io.circe.Json
 import service.error.general.{BadRequestError, GeneralError}
-
-// TODO - add errror details to class constructor
 
 object validation {
 
@@ -14,6 +12,8 @@ object validation {
       override def message: String = s"Invalid field format - $refinedError"
     }
 
-    def of(message: String): InvalidFieldFormat = InvalidFieldFormat(message)
+    final case class InvalidJsonFormat(error: String) extends ValidationError with BadRequestError {
+      override def message: String = s"Invalid json format :$error"
+    }
   }
 }

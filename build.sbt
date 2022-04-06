@@ -13,6 +13,7 @@ val circeVersion       = "0.14.1"
 val circeConfigVersion = "0.8.0"
 val monocleVersion     = "2.1.0"
 val refinedVersion     = "0.9.28"
+val enumeratumVersion  = "1.7.0"
 
 libraryDependencies ++= Seq(
   "eu.timepit"                 %% "refined"                % refinedVersion,
@@ -44,7 +45,9 @@ libraryDependencies ++= Seq(
   "com.github.julien-truffaut" %% "monocle-core"           % monocleVersion,
   "com.github.julien-truffaut" %% "monocle-refined"        % monocleVersion,
   "com.github.julien-truffaut" %% "monocle-macro"          % monocleVersion,
-  "org.scalatest"              %% "scalatest"              % "3.2.11" % "test"
+  "org.scalatest"              %% "scalatest"              % "3.2.11" % "test",
+  "com.beachape"               %% "enumeratum-circe"       % enumeratumVersion,
+  "com.beachape"               %% "enumeratum-doobie"      % enumeratumVersion
 )
 
 addCompilerPlugin(

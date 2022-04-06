@@ -4,13 +4,14 @@ import cats.data.Validated.Valid
 import doobie.{Read, Write}
 import types._
 import util.CaseConversionUtil._
-import doobie.refined.implicits._ // never delete this row
+import doobie.refined.implicits._
 import domain.category.Category
 import domain.order.{OrderItem, OrderStatus, ReadOrder}
 import domain.product.{ProductStatus, ReadProduct}
 import domain.supplier.Supplier
 import doobie.postgres._
 import doobie.postgres.implicits._
+import dto.attachment.ReadAttachmentDto
 import dto.order.OrderItemDto
 import util.ModelMapper._
 
@@ -19,19 +20,56 @@ import java.util.UUID
 // TODO - read how to use Refined inside Lists to read data
 
 package object implicits {
-  implicit val readProductStatus:  Read[ProductStatus]  = Read[String].map(v => ProductStatus.of(snakeToCamel(v)))
-  implicit val writeProductStatus: Write[ProductStatus] = Write[String].contramap(v => camelToSnake(v.toString))
-
-  implicit val readOrderStatus:  Read[OrderStatus]  = Read[String].map(v => OrderStatus.of(snakeToCamel(v)))
-  implicit val writeOrderStatus: Write[OrderStatus] = Write[String].contramap(v => camelToSnake(v.toString))
-
-  implicit val readCategory:  Read[Category]  = Read[Int].map(id => Category.of(id))
-  implicit val writeCategory: Write[Category] = Write[Int].contramap(c => c.id)
 
   implicit def readProductRead: Read[ReadProduct] =
-    Read[(UuidStr, NonEmptyStr, Category, Supplier, NonNegativeFloat, String, ProductStatus, DateStr)]
-      .map { case (product_id, product_name, category, supplier, price, description, status, publicationPeriod) =>
-        ReadProduct(product_id, product_name, category, supplier, price, description, status, publicationPeriod)
+    Read[
+      (
+        UuidStr,
+        NonEmptyStr,
+        Category,
+        Supplier,
+        NonNegativeFloat,
+        String,
+        ProductStatus,
+        DateStr,
+        List[Option[UUID]],
+        List[Option[String]]
+      )
+    ]
+      .map {
+        case (
+              product_id,
+              product_name,
+              category,
+              supplier,
+              price,
+              description,
+              status,
+              publicationPeriod,
+              attachmentIds,
+              attachmentUrls
+            ) =>
+          val attachments = attachmentIds
+            .zip(attachmentUrls)
+            .filter(_ != (None, None))
+            .map(a => {
+              val (id, url) = a
+              val dto       = ReadAttachmentDto(id.map(_.toString).getOrElse(""), url.getOrElse(""))
+              validateReadAttachmentDto(dto) match {
+                case Valid(a) => a
+              }
+            })
+          ReadProduct(
+            product_id,
+            product_name,
+            category,
+            supplier,
+            price,
+            description,
+            status,
+            publicationPeriod,
+            attachments
+          )
       }
 
   implicit def readOrderRead: Read[ReadOrder] =

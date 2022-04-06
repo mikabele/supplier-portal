@@ -9,7 +9,7 @@ import service.error.general.GeneralError
 package object implicits {
   implicit def catsShowForError[A <: GeneralError]: Show[A] = (t: GeneralError) => t.message
 
-  implicit val productStatusDecode: Decoder[ProductStatus] = Decoder.decodeString.map(ProductStatus.of)
+  //implicit val productStatusDecode: Decoder[ProductStatus] = Decoder.decodeString.map(ProductStatus.of)
 
-  implicit val orderStatusDecode: Decoder[OrderStatus] = Decoder.decodeString.map(OrderStatus.of)
+  //implicit val orderStatusDecode: Decoder[OrderStatus] = Decoder.decodeString.map(OrderStatus.of)
 }

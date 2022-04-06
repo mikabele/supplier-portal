@@ -2,7 +2,7 @@ package service
 
 import cats.effect.kernel.Sync
 import dto.subscription._
-import repository.SubscriptionRepository
+import repository.{SubscriptionRepository, SupplierRepository}
 import service.error.general.ErrorsOr
 import service.impl.SubscriptionServiceImpl
 
@@ -14,7 +14,10 @@ trait SubscriptionService[F[_]] {
 }
 
 object SubscriptionService {
-  def of[F[_]: Sync](subscriptionRepository: SubscriptionRepository[F]): SubscriptionService[F] = {
-    new SubscriptionServiceImpl[F](subscriptionRepository)
+  def of[F[_]: Sync](
+    subscriptionRepository: SubscriptionRepository[F],
+    supplierRepository:     SupplierRepository[F]
+  ): SubscriptionService[F] = {
+    new SubscriptionServiceImpl[F](subscriptionRepository, supplierRepository)
   }
 }

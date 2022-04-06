@@ -7,6 +7,7 @@ import eu.timepit.refined.refineV
 import service.error.general.{BadRequestError, ErrorsOr}
 import service.error.validation
 import service.error.validation.ValidationError
+import service.error.validation.ValidationError.InvalidFieldFormat
 
 object RefinedValidator {
   def refinedValidation[V, R](
@@ -14,5 +15,5 @@ object RefinedValidator {
   )(
     implicit validator: Validate[V, R]
   ): ValidatedNec[ValidationError, V Refined R] =
-    refineV(value)(validator).left.map(ValidationError.of).toValidatedNec
+    refineV(value)(validator).left.map(InvalidFieldFormat).toValidatedNec
 }

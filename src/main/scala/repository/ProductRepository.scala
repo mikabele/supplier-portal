@@ -13,13 +13,14 @@ import java.util.UUID
 
 trait ProductRepository[F[_]] {
 
-  def addProduct(product:    CreateProduct): F[UUID]
-  def updateProduct(product: UpdateProduct): F[Int]
-  def deleteProduct(id:      UUID):          F[Int]
-  def viewProducts(): F[List[ReadProduct]]
-  def attach(attachment:         CreateAttachment):      F[UUID]
-  def searchByCriteria(criteria: Criteria):              F[List[ReadProduct]]
-  def getByIds(ids:              NonEmptyList[UuidStr]): F[List[ReadProduct]]
+  def addProduct(product:        CreateProduct):               F[UUID]
+  def updateProduct(product:     UpdateProduct):               F[Int]
+  def deleteProduct(id:          UUID):                        F[Int]
+  def viewProducts(statuses:     NonEmptyList[ProductStatus]): F[List[ReadProduct]]
+  def attach(attachment:         CreateAttachment):            F[UUID]
+  def searchByCriteria(criteria: Criteria):                    F[List[ReadProduct]]
+  def getByIds(ids:              NonEmptyList[UuidStr]):       F[List[ReadProduct]]
+  def removeAttachment(id:       UUID):                        F[Int]
 
 }
 

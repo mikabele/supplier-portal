@@ -33,7 +33,7 @@ object ModelMapper {
 //    val domainToDto  = domainFields.composeIso(dtoFields)
     CreateProductDto(
       product.name.value,
-      product.categoryId.value,
+      product.category,
       product.supplierId.value,
       product.price.value,
       product.description
@@ -45,12 +45,16 @@ object ModelMapper {
     UpdateProductDto(
       product.id.value,
       product.name.value,
-      product.categoryId.value,
+      product.category,
       product.supplierId.value,
       product.price.value,
       product.description,
       product.status
     )
+  }
+
+  def readAttachmentDomainToDto(domain: ReadAttachment): ReadAttachmentDto = {
+    ReadAttachmentDto(domain.id.value, domain.attachment.value)
   }
 
   def readProductDomainToDto(product: ReadProduct): ReadProductDto = {
@@ -62,7 +66,8 @@ object ModelMapper {
       product.price.value,
       product.description,
       product.status,
-      product.publicationPeriod.value
+      product.publicationPeriod.value,
+      product.attachments.map(readAttachmentDomainToDto)
     )
   }
 
@@ -85,11 +90,10 @@ object ModelMapper {
     val price: ValidatedNec[GeneralError, NonNegativeFloat] =
       refinedValidation(productDto.price)
     val name:     ValidatedNec[GeneralError, NonEmptyStr] = refinedValidation(productDto.name)
-    val category: ValidatedNec[GeneralError, PositiveInt] = refinedValidation(productDto.categoryId)
     val supplier: ValidatedNec[GeneralError, PositiveInt] = refinedValidation(productDto.supplierId)
     (
       name,
-      category,
+      productDto.category.validNec,
       supplier,
       price,
       productDto.description.traverse(_.validNec)
@@ -99,13 +103,12 @@ object ModelMapper {
   def validateUpdateProductDto(dto: UpdateProductDto): ValidatedNec[GeneralError, UpdateProduct] = {
     val id:         ValidatedNec[GeneralError, UuidStr]          = refinedValidation(dto.id)
     val name:       ValidatedNec[GeneralError, NonEmptyStr]      = refinedValidation(dto.name)
-    val categoryId: ValidatedNec[GeneralError, PositiveInt]      = refinedValidation(dto.categoryId)
     val supplierId: ValidatedNec[GeneralError, PositiveInt]      = refinedValidation(dto.supplierId)
     val price:      ValidatedNec[GeneralError, NonNegativeFloat] = refinedValidation(dto.price)
     (
       id,
       name,
-      categoryId,
+      dto.category.validNec,
       supplierId,
       price,
       dto.description.validNec,
@@ -148,11 +151,10 @@ object ModelMapper {
   def validateCategorySubscriptionDto(
     dto: CategorySubscriptionDto
   ): ValidatedNec[GeneralError, CategorySubscription] = {
-    val userId:     ValidatedNec[GeneralError, UuidStr]     = refinedValidation(dto.userId)
-    val categoryId: ValidatedNec[GeneralError, PositiveInt] = refinedValidation(dto.categoryId)
+    val userId: ValidatedNec[GeneralError, UuidStr] = refinedValidation(dto.userId)
     (
       userId,
-      categoryId
+      dto.category.validNec
     ).mapN(CategorySubscription)
   }
 
@@ -181,7 +183,8 @@ object ModelMapper {
     val orderItems: ValidatedNec[GeneralError, List[OrderItem]] = dto.orderItems.traverse(validateOrderItemDto)
     (
       id,
-      orderItems
+      orderItems,
+      0f.validNec
     ).mapN(CreateOrder)
   }
 
@@ -204,5 +207,14 @@ object ModelMapper {
       id,
       dto.orderStatus.validNec
     ).mapN(UpdateOrder)
+  }
+
+  def validateReadAttachmentDto(dto: ReadAttachmentDto): ValidatedNec[GeneralError, ReadAttachment] = {
+    val id:  ValidatedNec[GeneralError, UuidStr] = refinedValidation(dto.id)
+    val url: ValidatedNec[GeneralError, UrlStr]  = refinedValidation(dto.attachment)
+    (
+      id,
+      url
+    ).mapN(ReadAttachment)
   }
 }

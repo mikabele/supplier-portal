@@ -4,7 +4,7 @@ import cats.effect.kernel.Sync
 import dto.attachment.CreateAttachmentDto
 import dto.criteria.CriteriaDto
 import dto.product.{CreateProductDto, ReadProductDto, UpdateProductDto}
-import repository.ProductRepository
+import repository.{ProductRepository, SupplierRepository}
 import service.error.general.ErrorsOr
 import service.impl.ProductServiceImpl
 
@@ -17,10 +17,14 @@ trait ProductService[F[_]] {
   def readProducts(): F[List[ReadProductDto]]
   def attach(attachmentDto:         CreateAttachmentDto): F[ErrorsOr[UUID]]
   def searchByCriteria(criteriaDto: CriteriaDto):         F[ErrorsOr[List[ReadProductDto]]]
+  def removeAttachment(id:          UUID):                F[ErrorsOr[Int]]
 }
 
 object ProductService {
-  def of[F[_]: Sync](productRepository: ProductRepository[F]): ProductService[F] = {
-    new ProductServiceImpl[F](productRepository)
+  def of[F[_]: Sync](
+    productRepository:  ProductRepository[F],
+    supplierRepository: SupplierRepository[F]
+  ): ProductService[F] = {
+    new ProductServiceImpl[F](productRepository, supplierRepository)
   }
 }

@@ -1,13 +1,18 @@
 package domain
 
+import domain.product.ProductStatus
+import doobie.postgres.implicits.pgEnumString
+import enumeratum.{CirceEnum, DoobieEnum, Enum, EnumEntry}
+import enumeratum.EnumEntry.Snakecase
+import io.circe.Json
 import types._
-
-// TODO - reimplement OrderStatus and all other enums with Enumeration and doobie support
+import io.circe.syntax._
 
 object order {
   final case class CreateOrder(
     userId:     UuidStr,
-    orderItems: List[OrderItem]
+    orderItems: List[OrderItem],
+    total:      Float
   )
 
   // TODO - rename class
@@ -26,15 +31,17 @@ object order {
     total:            NonNegativeFloat
   )
 
-  sealed trait OrderStatus
-  object OrderStatus {
+  sealed trait OrderStatus extends EnumEntry with Snakecase
+  case object OrderStatus extends Enum[OrderStatus] with CirceEnum[OrderStatus] with DoobieEnum[OrderStatus] {
     final case object Canceled extends OrderStatus
     final case object Ordered extends OrderStatus
 
-    def of(status: String): OrderStatus = status match {
-      case "canceled" => Canceled
-      case "ordered"  => Ordered
-    }
+    val values: IndexedSeq[OrderStatus] = findValues
+
+    OrderStatus.values.foreach { status => assert(status.asJson == Json.fromString(status.entryName)) }
+
+    implicit override lazy val enumMeta: doobie.Meta[OrderStatus] =
+      pgEnumString("order_status", OrderStatus.withName, _.entryName)
   }
 
   final case class OrderItem(

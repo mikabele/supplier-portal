@@ -1,5 +1,6 @@
 package domain
 
+import domain.category.Category
 import types._
 
 object subscription {
@@ -10,7 +11,7 @@ object subscription {
   )
 
   final case class CategorySubscription(
-    userId:     UuidStr,
-    categoryId: PositiveInt
+    userId:   UuidStr,
+    category: Category
   )
 }
