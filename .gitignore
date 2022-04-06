@@ -176,8 +176,8 @@ fabric.properties
 dist/*
 target/*
 target/
-./bsp/*
-./bsp/
+.bsp/*
+.bsp/
 project/target/*
 project/target/
 lib_managed/
