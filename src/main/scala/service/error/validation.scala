@@ -1,6 +1,5 @@
 package service.error
 
-import io.circe.Json
 import service.error.general.{BadRequestError, GeneralError}
 
 object validation {

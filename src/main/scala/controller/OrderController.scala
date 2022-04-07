@@ -10,7 +10,6 @@ import org.http4s.circe.CirceEntityCodec.{circeEntityDecoder, circeEntityEncoder
 import org.http4s.dsl.Http4sDsl
 import service.OrderService
 import util.ResponseHandlingUtil.marshalResponse
-import controller.implicits._ // never delete this row
 
 object OrderController {
   def routes[F[_]: Concurrent](orderService: OrderService[F]): HttpRoutes[F] = {
@@ -26,10 +25,9 @@ object OrderController {
       marshalResponse(res)
     }
 
-    def updateOrder(): HttpRoutes[F] = HttpRoutes.of[F] { case req @ PUT -> Root / "api" / "order" =>
+    def cancelOrder(): HttpRoutes[F] = HttpRoutes.of[F] { case PUT -> Root / "api" / "order" / UUIDVar(id) =>
       val res = for {
-        updateDto <- req.as[UpdateOrderDto]
-        result    <- orderService.updateOrder(updateDto)
+        result <- orderService.cancelOrder(id)
       } yield result
 
       marshalResponse(res)
@@ -42,6 +40,6 @@ object OrderController {
       } yield response
     }
 
-    createOrder() <+> updateOrder() <+> viewActiveOrders()
+    createOrder() <+> cancelOrder() <+> viewActiveOrders()
   }
 }

@@ -5,9 +5,9 @@ import domain.supplier.Supplier
 import doobie.implicits._
 import doobie.util.transactor.Transactor
 import repository.SupplierRepository
-import types.{PositiveInt, UuidStr}
-import repository.impl.implicits._
+import types._
 import doobie.refined.implicits._ //never delete this row
+import repository.impl.logger.logger._
 
 class DoobieSupplierRepositoryImpl[F[_]: Sync](tx: Transactor[F]) extends SupplierRepository[F] {
 

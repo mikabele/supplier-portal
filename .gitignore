@@ -187,7 +187,8 @@ project/plugins/project/
 .history
 .cache
 .lib/
-
+log_files/
+log_files/*
 ### Scala ###
 *.class
 *.log

@@ -1,3 +1,44 @@
 package controller
 
-object DeliveryController {}
+import cats.effect.Concurrent
+import cats.syntax.all._
+import dto.delivery.CreateDeliveryDto
+import io.circe.generic.auto._
+import org.http4s.HttpRoutes
+import org.http4s.circe.CirceEntityCodec.{circeEntityDecoder, circeEntityEncoder}
+import org.http4s.dsl.Http4sDsl
+import service.DeliveryService
+import util.ResponseHandlingUtil.marshalResponse
+
+object DeliveryController {
+  def routes[F[_]: Concurrent](deliveryService: DeliveryService[F]): HttpRoutes[F] = {
+    implicit val dsl: Http4sDsl[F] = new Http4sDsl[F] {}
+    import dsl._
+
+    def assignDelivery(): HttpRoutes[F] = HttpRoutes.of[F] { case req @ POST -> Root / "api" / "delivery" =>
+      val res = for {
+        createDto <- req.as[CreateDeliveryDto]
+        id        <- deliveryService.createDelivery(createDto)
+      } yield id
+
+      marshalResponse(res)
+    }
+
+    def delivered(): HttpRoutes[F] = HttpRoutes.of[F] { case PUT -> Root / "api" / "delivery" / UUIDVar(id) =>
+      val res = for {
+        result <- deliveryService.delivered(id)
+      } yield result
+
+      marshalResponse(res)
+    }
+
+    def showDeliveries(): HttpRoutes[F] = HttpRoutes.of[F] { case GET -> Root / "api" / "delivery" =>
+      for {
+        deliveries <- deliveryService.showDeliveries()
+        result     <- Ok(deliveries)
+      } yield result
+    }
+
+    assignDelivery() <+> delivered() <+> showDeliveries()
+  }
+}

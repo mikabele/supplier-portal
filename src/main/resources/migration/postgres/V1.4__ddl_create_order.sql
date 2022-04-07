@@ -1,5 +1,5 @@
 DROP TYPE IF EXISTS ORDER_STATUS CASCADE;
-CREATE TYPE ORDER_STATUS AS ENUM('ordered','canceled');
+CREATE TYPE ORDER_STATUS AS ENUM('ordered','cancelled','assigned','delivered');
 
 DROP TABLE IF EXISTS "order" CASCADE;
 CREATE TABLE "order"
@@ -9,6 +9,7 @@ CREATE TABLE "order"
     total FLOAT DEFAULT 0,
     status ORDER_STATUS DEFAULT 'ordered',
     ordered_start_date DATE DEFAULT CURRENT_DATE,
+    address VARCHAR(256) NOT NULL,
     PRIMARY KEY (id),
     CONSTRAINT user_fk FOREIGN KEY (user_id) REFERENCES "user"(id)
 );

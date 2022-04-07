@@ -1,8 +1,6 @@
 package controller
 
-import cats.{Applicative, Monad}
-import cats.data.{Chain, EitherT}
-import cats.effect.{Async, Concurrent, Sync}
+import cats.effect.Concurrent
 import cats.syntax.all._
 import dto.attachment._
 import dto.criteria._
@@ -13,13 +11,6 @@ import org.http4s.circe.CirceEntityCodec.{circeEntityDecoder, circeEntityEncoder
 import org.http4s.dsl.Http4sDsl
 import service.ProductService
 import util.ResponseHandlingUtil.marshalResponse
-import controller.implicits._
-import service.error.general.{ErrorsOr, GeneralError}
-import service.error.validation.ValidationError.InvalidJsonFormat
-
-import scala.util.Try
-
-// TODO - add tests (functional tests). Start server -> Http4s client -> assert /should be.
 
 object ProductController {
 
@@ -29,30 +20,20 @@ object ProductController {
 
     def addProduct(): HttpRoutes[F] = HttpRoutes.of[F] { case req @ POST -> Root / "api" / "product" =>
       val res = for {
-        product <- EitherT(
-          req
-            .as[CreateProductDto]
-            .attempt
-        ).leftMap(ex => Chain[GeneralError](InvalidJsonFormat(ex.getMessage)))
-        result <- EitherT(productService.addProduct(product))
+        product <- req.as[CreateProductDto]
+        result  <- productService.addProduct(product)
       } yield result
 
-      marshalResponse(res.value)
+      marshalResponse(res)
     }
 
     def updateProduct(): HttpRoutes[F] = HttpRoutes.of[F] { case req @ PUT -> Root / "api" / "product" =>
       val res = for {
-        product <-
-          EitherT(
-            req
-              .as[UpdateProductDto]
-              .attempt
-          ).leftMap(ex => Chain[GeneralError](InvalidJsonFormat(ex.getMessage)))
-
-        result <- EitherT(productService.updateProduct(product))
+        product <- req.as[UpdateProductDto]
+        result  <- productService.updateProduct(product)
       } yield result
 
-      marshalResponse(res.value)
+      marshalResponse(res)
     }
 
     def deleteProduct(): HttpRoutes[F] = HttpRoutes.of[F] { case DELETE -> Root / "api" / "product" / UUIDVar(id) =>
@@ -73,15 +54,11 @@ object ProductController {
     def attachToProduct(): HttpRoutes[F] = HttpRoutes.of[F] {
       case req @ POST -> Root / "api" / "product" / "attachment" =>
         val res = for {
-          attachment <- EitherT(
-            req
-              .as[CreateAttachmentDto]
-              .attempt
-          ).leftMap(ex => Chain[GeneralError](InvalidJsonFormat(ex.getMessage)))
-          result <- EitherT(productService.attach(attachment))
+          attachment <- req.as[CreateAttachmentDto]
+          result     <- productService.attach(attachment)
         } yield result
 
-        marshalResponse(res.value)
+        marshalResponse(res)
     }
 
     def removeAttachment(): HttpRoutes[F] = HttpRoutes.of[F] {
@@ -95,15 +72,11 @@ object ProductController {
 
     def search(): HttpRoutes[F] = HttpRoutes.of[F] { case req @ POST -> Root / "api" / "product" / "search" =>
       val res = for {
-        criteria <- EitherT(
-          req
-            .as[CriteriaDto]
-            .attempt
-        ).leftMap(ex => Chain[GeneralError](InvalidJsonFormat(ex.getMessage)))
-        result <- EitherT(productService.searchByCriteria(criteria))
+        criteria <- req.as[CriteriaDto]
+        result   <- productService.searchByCriteria(criteria)
       } yield result
 
-      marshalResponse(res.value)
+      marshalResponse(res)
     }
 
     addProduct() <+> updateProduct() <+> deleteProduct <+> viewProducts <+> attachToProduct <+> search <+> removeAttachment()

@@ -5,7 +5,8 @@ import domain.order.OrderStatus
 object order {
   final case class CreateOrderDto(
     userId:     String, // temp field while i don't implement authorization logic
-    orderItems: List[OrderItemDto]
+    orderItems: List[OrderItemDto],
+    address:    String
   )
 
   final case class OrderItemDto(
@@ -20,9 +21,11 @@ object order {
 
   final case class ReadOrderDto(
     id:               String,
+    userId:           String,
     orderItems:       List[OrderItemDto],
     status:           OrderStatus,
     orderedStartDate: String,
-    total:            Float
+    total:            Float,
+    address:          String
   )
 }

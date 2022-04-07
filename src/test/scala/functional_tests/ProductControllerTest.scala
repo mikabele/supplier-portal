@@ -4,24 +4,24 @@ import cats.effect.unsafe.implicits._
 import cats.effect.{Async, IO, Resource}
 import domain.category.Category
 import domain.product.ProductStatus
-import dto.attachment.ReadAttachmentDto
-import dto.product.ReadProductDto
+import dto.attachment.{CreateAttachmentDto, ReadAttachmentDto}
+import dto.criteria.CriteriaDto
+import dto.product.{CreateProductDto, ReadProductDto, UpdateProductDto}
 import dto.supplier.SupplierDto
-import io.circe.{parser, Json}
+import io.circe.generic.auto._
 import org.http4s.Request
 import org.http4s.Status.Successful
 import org.http4s.blaze.client._
 import org.http4s.circe.CirceEntityCodec.{circeEntityDecoder, circeEntityEncoder}
-import io.circe.generic.auto._
 import org.http4s.client.Client
 import org.http4s.dsl.io._
 import org.http4s.implicits._
-import org.scalatest.funspec.AsyncFunSpec
+import org.scalatest.funspec.AnyFunSpec
 
 import java.util.UUID
 import scala.language.postfixOps
 
-class ProductControllerTest extends AsyncFunSpec {
+class ProductControllerTest extends AnyFunSpec {
 
   def clientResource[F[_]: Async]: Resource[F, Client[F]] = {
     import scala.concurrent.ExecutionContext.Implicits.global
@@ -67,19 +67,12 @@ class ProductControllerTest extends AsyncFunSpec {
             response <- cl.fetchAs[List[ReadProductDto]](request)
           } yield assert(response == expected)
         })
-        .unsafeToFuture()
+        .unsafeRunSync()
     }
 
     it("should create object when POST request was sent") {
-      val body = parser.parse("""
-                                |{
-                                |    "name":"meeta",
-                                |    "category":1,
-                                |    "supplierId": 1,
-                                |    "price":25.2
-                                |}""".stripMargin) match {
-        case Right(v) => v
-      }
+
+      val body    = CreateProductDto("meeta", Category.Food, 1, 25.2f, None)
       val request = Request[IO](method = POST, uri = productAPIAddress).withEntity(body)
       client
         .use(cl => {
@@ -98,19 +91,11 @@ class ProductControllerTest extends AsyncFunSpec {
               }
           } yield res
         })
-        .unsafeToFuture()
+        .unsafeRunSync()
     }
 
     it("should update object for given id with given params") {
-      val body = parser.parse("""
-                                |{
-                                |    "name":"meetb",
-                                |    "category":1,
-                                |    "supplierId": 1,
-                                |    "price":25.2
-                                |}""".stripMargin) match {
-        case Right(v) => v
-      }
+      val body    = CreateProductDto("meeta", Category.Food, 1, 25.2f, None)
       val request = Request[IO](method = POST, uri = productAPIAddress).withEntity(body)
       client
         .use(cl => {
@@ -121,20 +106,17 @@ class ProductControllerTest extends AsyncFunSpec {
                 case Successful(r) =>
                   for {
                     id <- r.as[UUID]
-                    b = parser.parse(s"""
-                                        |             {
-                                        |  "id" : "$id",
-                                        |  "name" : "carrot",
-                                        |  "category" : 1,
-                                        |  "supplierId" : 1,
-                                        |  "price" : 22.0,
-                                        |  "description" : "integration test",
-                                        |  "status" : "in_processing"
-                                        |}""".stripMargin) match {
-                      case Right(v) => v
-                    }
+                    b = UpdateProductDto(
+                      id.toString,
+                      "meeta",
+                      Category.Food,
+                      1,
+                      22.0f,
+                      "integration_test",
+                      ProductStatus.InProcessing
+                    )
                     updateRequest = Request[IO](method = PUT, uri = productAPIAddress).withEntity(b)
-                    response     <- cl.fetchAs[Json](updateRequest)
+                    response     <- cl.fetchAs[UpdateProductDto](updateRequest)
                     deleteRequest = Request[IO](method = DELETE, uri = productAPIAddress / id)
                     _            <- cl.status(deleteRequest)
                   } yield assert(response == b)
@@ -143,19 +125,11 @@ class ProductControllerTest extends AsyncFunSpec {
               }
           } yield res
         })
-        .unsafeToFuture()
+        .unsafeRunSync()
     }
 
     it("should delete product if DELETE request given") {
-      val body = parser.parse("""
-                                |{
-                                |    "name":"meetc",
-                                |    "category":1,
-                                |    "supplierId": 1,
-                                |    "price":25.2
-                                |}""".stripMargin) match {
-        case Right(v) => v
-      }
+      val body    = CreateProductDto("meeta", Category.Food, 1, 25.2f, None)
       val request = Request[IO](method = POST, uri = productAPIAddress).withEntity(body)
       client
         .use(cl => {
@@ -165,20 +139,14 @@ class ProductControllerTest extends AsyncFunSpec {
             count        <- cl.fetchAs[Int](deleteRequest)
           } yield assert(count == 1)
         })
-        .unsafeToFuture()
+        .unsafeRunSync()
     }
 
     it(
       "should return List of ReadProductDto according to given Criteria object. " +
         "If Criteria has 2 or more fields filter will work with option AND (not OR)"
     ) {
-      val body = parser.parse("""{
-                                |    "name" : "ca%",
-                                |    "categoryName" : "foo%",
-                                |    "startDate": "2019-01-01"
-                                |}""".stripMargin) match {
-        case Right(v) => v
-      }
+      val body    = CriteriaDto(name = Some("ca%"), categoryName = Some("foo%"))
       val request = Request[IO](method = POST, uri = productAPIAddress / "search").withEntity(body)
       val expected = List(
         ReadProductDto(
@@ -212,18 +180,11 @@ class ProductControllerTest extends AsyncFunSpec {
             response <- cl.fetchAs[List[ReadProductDto]](request)
           } yield assert(response == expected)
         })
-        .unsafeToFuture()
+        .unsafeRunSync()
     }
 
     it("should return ProductNotFound error with status code 404 if you try to delete non-exists product") {
-      val body = parser.parse("""{
-                                |    "name":"meete",
-                                |    "category":1,
-                                |    "supplierId": 1,
-                                |    "price":25.2
-                                |}""".stripMargin) match {
-        case Right(v) => v
-      }
+      val body    = CreateProductDto("meeta", Category.Food, 1, 25.2f, None)
       val request = Request[IO](method = POST, uri = productAPIAddress).withEntity(body)
       client
         .use(cl => {
@@ -235,18 +196,11 @@ class ProductControllerTest extends AsyncFunSpec {
             _                   <- cl.status(validDeleteRequest)
           } yield assert(status == NotFound)
         })
-        .unsafeToFuture()
+        .unsafeRunSync()
     }
 
     it("should return BadRequestError if refined validation failed") {
-      val body = parser.parse("""{
-                                |    "name":"meetf",
-                                |    "category":-1,
-                                |    "supplierId": -1,
-                                |    "price":25.2
-                                |}""".stripMargin) match {
-        case Right(v) => v
-      }
+      val body    = CreateProductDto("meeta", Category.Food, -1, -25.2f, None)
       val request = Request[IO](method = POST, uri = productAPIAddress).withEntity(body)
       client
         .use(cl => {
@@ -254,20 +208,16 @@ class ProductControllerTest extends AsyncFunSpec {
             status <- cl.status(request)
           } yield assert(status == BadRequest)
         })
-        .unsafeToFuture()
+        .unsafeRunSync()
     }
 
     it(
       "should return ProductNotFound error with status code NotFound if you try to attach something to non-exists product"
     ) {
-      val body = parser.parse("""
-                                |{
-                                |    "attachment":"https://upload.wikimedia.org/wikipedia/commons/d/dc/Carrot-fb.jpg",
-                                |    "productId":"7befac6d-9e68-4064-927c-b9700438fea1"
-                                |}
-                                |""".stripMargin) match {
-        case Right(v) => v
-      }
+      val body = CreateAttachmentDto(
+        "https://upload.wikimedia.org/wikipedia/commons/d/dc/Carrot-fb.jpg",
+        "7befac6d-9e68-4064-927c-b9700438fea1"
+      )
       val request = Request[IO](method = POST, uri = productAPIAddress / "attachment").withEntity(body)
       client
         .use(cl => {
@@ -275,7 +225,7 @@ class ProductControllerTest extends AsyncFunSpec {
             status <- cl.status(request)
           } yield assert(status == NotFound)
         })
-        .unsafeToFuture()
+        .unsafeRunSync()
     }
 
     it("should return BadRequestError if JSON body validation failed") {
@@ -292,7 +242,7 @@ class ProductControllerTest extends AsyncFunSpec {
             status <- cl.status(request)
           } yield assert(status == BadRequest)
         })
-        .unsafeToFuture()
+        .unsafeRunSync()
     }
 
     it("should return BadRequest if Category doesn't exists") {
@@ -309,18 +259,11 @@ class ProductControllerTest extends AsyncFunSpec {
             status <- cl.status(request)
           } yield assert(status == BadRequest)
         })
-        .unsafeToFuture()
+        .unsafeRunSync()
     }
 
     it("should return NotFoundError if Supplier doesn't exists") {
-      val body = parser.parse("""{
-                                |    "name":"meetaa",
-                                |    "category":1,
-                                |    "supplierId": 10,
-                                |    "price":25.2
-                                |}""".stripMargin) match {
-        case Right(v) => v
-      }
+      val body    = CreateProductDto("meeta", Category.Food, 10, 25.2f, None)
       val request = Request[IO](method = POST, uri = productAPIAddress).withEntity(body)
       client
         .use(cl => {
@@ -328,7 +271,7 @@ class ProductControllerTest extends AsyncFunSpec {
             status <- cl.status(request)
           } yield assert(status == NotFound)
         })
-        .unsafeToFuture()
+        .unsafeRunSync()
     }
 
     it("should return NotFoundError if you try to remove non-exists attachment") {
@@ -340,7 +283,7 @@ class ProductControllerTest extends AsyncFunSpec {
             status <- cl.status(request)
           } yield assert(status == NotFound)
         })
-        .unsafeToFuture()
+        .unsafeRunSync()
     }
   }
 }

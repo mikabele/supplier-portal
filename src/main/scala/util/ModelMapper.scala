@@ -2,35 +2,30 @@ package util
 
 import cats.data.ValidatedNec
 import cats.implicits._
-import eu.timepit.refined.string.MatchesRegex.matchesRegexValidate
-import eu.timepit.refined.string.Url.urlValidate
-import eu.timepit.refined.string.Uuid.uuidValidate
-import monocle._
-import monocle.refined._
-import monocle.macros._
 import domain.attachment._
 import domain.criteria.Criteria
-import domain.order.{CreateOrder, OrderItem, ReadOrder, UpdateOrder}
+import domain.delivery.{CreateDelivery, ReadDelivery}
+import domain.order.{CreateOrder, CreateOrderItem, DbReadOrder, ReadOrder, ReadOrderItem, UpdateOrder}
 import domain.product._
 import domain.subscription.{CategorySubscription, SupplierSubscription}
 import domain.supplier.Supplier
-import types._
-import util.RefinedValidator.refinedValidation
-import service.error.general.GeneralError
+import domain.user.ReadAuthorizedUser
 import dto.attachment._
 import dto.criteria.CriteriaDto
+import dto.delivery.{CreateDeliveryDto, ReadDeliveryDto}
 import dto.order.{CreateOrderDto, OrderItemDto, ReadOrderDto, UpdateOrderDto}
 import dto.product._
 import dto.subscription.{CategorySubscriptionDto, SupplierSubscriptionDto}
 import dto.supplier.SupplierDto
+import dto.user.ReadAuthorizedUserDto
+import service.error.general.GeneralError
+import types._
+import util.RefinedValidator.refinedValidation
 
 object ModelMapper {
   // TODO - find out how to make isomorphism between Dto and Domain (refined supported)
 
   def createProductDomainToDto(product: CreateProduct): CreateProductDto = {
-//    val domainFields = GenIso.fields[CreateProduct]
-//    val dtoFields    = GenIso.fields[CreateProductDto].reverse
-//    val domainToDto  = domainFields.composeIso(dtoFields)
     CreateProductDto(
       product.name.value,
       product.category,
@@ -38,7 +33,6 @@ object ModelMapper {
       product.price.value,
       product.description
     )
-    //domainToDto.get(product)
   }
 
   def updateProductDomainToDto(product: UpdateProduct): UpdateProductDto = {
@@ -117,9 +111,11 @@ object ModelMapper {
   }
 
   def validateAttachmentDto(dto: CreateAttachmentDto): ValidatedNec[GeneralError, CreateAttachment] = {
+    val attachment: ValidatedNec[GeneralError, UrlStr]  = refinedValidation(dto.attachment)
+    val productId:  ValidatedNec[GeneralError, UuidStr] = refinedValidation(dto.productId)
     (
-      refinedValidation(dto.attachment)(urlValidate),
-      refinedValidation(dto.productId)(uuidValidate)
+      attachment,
+      productId
     ).mapN(CreateAttachment)
   }
 
@@ -169,32 +165,42 @@ object ModelMapper {
     ).mapN(SupplierSubscription)
   }
 
-  def validateOrderItemDto(dto: OrderItemDto): ValidatedNec[GeneralError, OrderItem] = {
+  def validateOrderItemDto(dto: OrderItemDto): ValidatedNec[GeneralError, CreateOrderItem] = {
     val id:    ValidatedNec[GeneralError, UuidStr]     = refinedValidation(dto.productId)
     val count: ValidatedNec[GeneralError, PositiveInt] = refinedValidation(dto.count)
     (
       id,
       count
-    ).mapN(OrderItem)
+    ).mapN(CreateOrderItem)
   }
 
   def validateCreateOrderDto(dto: CreateOrderDto): ValidatedNec[GeneralError, CreateOrder] = {
-    val id:         ValidatedNec[GeneralError, UuidStr]         = refinedValidation(dto.userId)
-    val orderItems: ValidatedNec[GeneralError, List[OrderItem]] = dto.orderItems.traverse(validateOrderItemDto)
+    val id:         ValidatedNec[GeneralError, UuidStr]               = refinedValidation(dto.userId)
+    val orderItems: ValidatedNec[GeneralError, List[CreateOrderItem]] = dto.orderItems.traverse(validateOrderItemDto)
+    val address:    ValidatedNec[GeneralError, NonEmptyStr]           = refinedValidation(dto.address)
     (
       id,
       orderItems,
-      0f.validNec
+      0f.validNec,
+      address
     ).mapN(CreateOrder)
   }
 
-  def orderItemDomainToDto(domain: OrderItem): OrderItemDto = {
+  def orderItemDomainToDto(domain: ReadOrderItem): OrderItemDto = {
     OrderItemDto(domain.productId.value, domain.count.value)
   }
 
   def readOrderDomainToDto(domain: ReadOrder): ReadOrderDto = {
     val orderItems = domain.orderItems.map(orderItemDomainToDto)
-    ReadOrderDto(domain.id.value, orderItems, domain.orderStatus, domain.orderedStartDate.value, domain.total.value)
+    ReadOrderDto(
+      domain.id.value,
+      domain.userId.value,
+      orderItems,
+      domain.orderStatus,
+      domain.orderedStartDate.value,
+      domain.total.value,
+      domain.address.value
+    )
   }
 
   def updateOrderDomainToDto(domain: UpdateOrder): UpdateOrderDto = {
@@ -209,12 +215,69 @@ object ModelMapper {
     ).mapN(UpdateOrder)
   }
 
-  def validateReadAttachmentDto(dto: ReadAttachmentDto): ValidatedNec[GeneralError, ReadAttachment] = {
-    val id:  ValidatedNec[GeneralError, UuidStr] = refinedValidation(dto.id)
-    val url: ValidatedNec[GeneralError, UrlStr]  = refinedValidation(dto.attachment)
+  def readAuthorizedUserDomainToDto(user: ReadAuthorizedUser): ReadAuthorizedUserDto = {
+    ReadAuthorizedUserDto(
+      user.id.value,
+      user.name.value,
+      user.surname.value,
+      user.role,
+      user.phone.value,
+      user.email.value
+    )
+  }
+
+  def readDeliveryDomainToDto(domain: ReadDelivery): ReadDeliveryDto = {
+    ReadDeliveryDto(
+      domain.id.value,
+      domain.orderId.value,
+      readAuthorizedUserDomainToDto(domain.courier),
+      domain.deliveryStartDate.value,
+      domain.deliveryFinishDate.map(_.value)
+    )
+  }
+
+  def validateCreateDeliveryDto(dto: CreateDeliveryDto): ValidatedNec[GeneralError, CreateDelivery] = {
+    val courierId: ValidatedNec[GeneralError, UuidStr] = refinedValidation(dto.courierId)
+    val orderId:   ValidatedNec[GeneralError, UuidStr] = refinedValidation(dto.orderId)
     (
-      id,
-      url
-    ).mapN(ReadAttachment)
+      courierId,
+      orderId
+    ).mapN(CreateDelivery)
+  }
+
+  object DbModelMapper {
+
+    def joinProductsWithAttachments(
+      products:    List[DbReadProduct],
+      attachments: List[ReadAttachment]
+    ): List[ReadProduct] = {
+      products.map(product =>
+        ReadProduct(
+          product.id,
+          product.name,
+          product.category,
+          product.supplier,
+          product.price,
+          product.description,
+          product.status,
+          product.publicationPeriod,
+          attachments.filter(_.productId == product.id)
+        )
+      )
+    }
+
+    def joinOrdersWithProducts(orders: List[DbReadOrder], orderProducts: List[ReadOrderItem]): List[ReadOrder] = {
+      orders.map(order =>
+        ReadOrder(
+          order.id,
+          order.userId,
+          orderProducts.filter(_.orderId == order.id),
+          order.orderStatus,
+          order.orderedStartDate,
+          order.total,
+          order.address
+        )
+      )
+    }
   }
 }

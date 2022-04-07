@@ -5,9 +5,9 @@ import cats.implicits.toSemigroupKOps
 import org.http4s.HttpApp
 import conf.app._
 import conf.db._
-import controller.{OrderController, ProductController, SubscriptionController}
-import repository.{OrderRepository, ProductRepository, SubscriptionRepository, SupplierRepository}
-import service.{OrderService, ProductService, SubscriptionService}
+import controller.{DeliveryController, OrderController, ProductController, SubscriptionController}
+import repository.{DeliveryRepository, OrderRepository, ProductRepository, SubscriptionRepository, SupplierRepository}
+import service.{DeliveryService, OrderService, ProductService, SubscriptionService}
 
 object AppContext {
   def setUp[F[_]: Async](conf: AppConf): Resource[F, HttpApp[F]] = {
@@ -30,6 +30,10 @@ object AppContext {
       orderRepository = OrderRepository.of(tx)
       orderService    = OrderService.of(orderRepository, productRepository)
       orderRoutes     = OrderController.routes(orderService)
-    } yield (productRoutes <+> subscriptionRoutes <+> orderRoutes).orNotFound
+
+      deliveryRepository = DeliveryRepository.of(tx)
+      deliveryService    = DeliveryService.of(deliveryRepository, orderRepository)
+      deliveryRoutes     = DeliveryController.routes(deliveryService)
+    } yield (productRoutes <+> subscriptionRoutes <+> orderRoutes <+> deliveryRoutes).orNotFound
   }
 }

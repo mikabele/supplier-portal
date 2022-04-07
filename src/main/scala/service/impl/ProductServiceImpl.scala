@@ -26,7 +26,7 @@ class ProductServiceImpl[F[_]: Monad](
       product <- EitherT.fromEither(validateCreateProductDto(productDto).toEither.leftMap(_.toChain))
       _ <- EitherT.fromOptionF(
         supplierRepository.getById(product.supplierId),
-        Chain[GeneralError](SupplierNotFound(product.supplierId))
+        Chain[GeneralError](SupplierNotFound(product.supplierId.value))
       )
       id <- EitherT.liftF(productRep.addProduct(product)).leftMap((_: Nothing) => Chain.empty[GeneralError])
     } yield id
@@ -41,12 +41,10 @@ class ProductServiceImpl[F[_]: Monad](
       domain <- EitherT.fromEither(validateUpdateProductDto(productDto).toEither.leftMap(_.toChain))
       _ <- EitherT.fromOptionF(
         supplierRepository.getById(domain.supplierId),
-        Chain[GeneralError](SupplierNotFound(domain.supplierId))
+        Chain[GeneralError](SupplierNotFound(domain.supplierId.value))
       )
       count <- EitherT.liftF(productRep.updateProduct(domain)).leftMap((_: Nothing) => Chain.empty[GeneralError])
-      _ <- EitherT.fromEither(
-        Either.cond(count > 0, count, Chain[GeneralError](ProductNotFound(UUID.fromString(domain.id.value))))
-      )
+      _     <- EitherT.cond(count > 0, count, Chain[GeneralError](ProductNotFound(domain.id.value)))
     } yield updateProductDomainToDto(domain)
 
     res.value
@@ -55,7 +53,7 @@ class ProductServiceImpl[F[_]: Monad](
   override def deleteProduct(id: UUID): F[ErrorsOr[Int]] = {
     val res = for {
       count  <- EitherT.liftF(productRep.deleteProduct(id)).leftMap((_: Nothing) => Chain.empty[GeneralError])
-      result <- EitherT.fromEither(Either.cond(count > 0, count, Chain[GeneralError](ProductNotFound(id))))
+      result <- EitherT.cond(count > 0, count, Chain[GeneralError](ProductNotFound(id.toString)))
     } yield result
 
     res.value
@@ -76,12 +74,10 @@ class ProductServiceImpl[F[_]: Monad](
       products <- EitherT
         .liftF(productRep.getByIds(NonEmptyList.of(attachment.productId)))
         .leftMap((_: Nothing) => Chain.empty[GeneralError])
-      _ <- EitherT.fromEither(
-        Either.cond(
-          products.nonEmpty,
-          products,
-          Chain[GeneralError](ProductNotFound(UUID.fromString(attachment.productId.value)))
-        )
+      _ <- EitherT.cond(
+        products.nonEmpty,
+        products,
+        Chain[GeneralError](ProductNotFound(attachment.productId.value))
       )
       id <- EitherT.liftF(productRep.attach(attachment)).leftMap((_: Nothing) => Chain.empty[GeneralError])
     } yield id
@@ -105,7 +101,7 @@ class ProductServiceImpl[F[_]: Monad](
   override def removeAttachment(id: UUID): F[ErrorsOr[Int]] = {
     val res = for {
       count  <- EitherT.liftF(productRep.removeAttachment(id)).leftMap((_: Nothing) => Chain.empty[GeneralError])
-      result <- EitherT.fromEither(Either.cond(count > 0, count, Chain[GeneralError](AttachmentNotFound(id))))
+      result <- EitherT.cond(count > 0, count, Chain[GeneralError](AttachmentNotFound(id.toString)))
     } yield result
 
     res.value

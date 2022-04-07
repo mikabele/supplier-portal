@@ -14,6 +14,7 @@ val circeConfigVersion = "0.8.0"
 val monocleVersion     = "2.1.0"
 val refinedVersion     = "0.9.28"
 val enumeratumVersion  = "1.7.0"
+val loggerVersion      = "2.17.2"
 
 libraryDependencies ++= Seq(
   "eu.timepit"                 %% "refined"                % refinedVersion,
@@ -24,6 +25,7 @@ libraryDependencies ++= Seq(
   "org.tpolecat"               %% "doobie-specs2"          % doobieVersion,
   "org.tpolecat"               %% "doobie-refined"         % doobieVersion,
   "org.tpolecat"               %% "doobie-hikari"          % doobieVersion,
+  "org.tpolecat"               %% "doobie-postgres-circe"  % "0.13.4",
   "org.http4s"                 %% "http4s-dsl"             % http4sVersion,
   "org.http4s"                 %% "http4s-blaze-server"    % http4sVersion,
   "org.http4s"                 %% "http4s-blaze-client"    % http4sVersion,
@@ -47,7 +49,9 @@ libraryDependencies ++= Seq(
   "com.github.julien-truffaut" %% "monocle-macro"          % monocleVersion,
   "org.scalatest"              %% "scalatest"              % "3.2.11" % "test",
   "com.beachape"               %% "enumeratum-circe"       % enumeratumVersion,
-  "com.beachape"               %% "enumeratum-doobie"      % enumeratumVersion
+  "com.beachape"               %% "enumeratum-doobie"      % enumeratumVersion,
+  "org.apache.logging.log4j"    % "log4j-api"              % loggerVersion,
+  "org.apache.logging.log4j"    % "log4j-core"             % loggerVersion
 )
 
 addCompilerPlugin(

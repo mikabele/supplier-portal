@@ -6,6 +6,8 @@ DROP TABLE IF EXISTS "user" CASCADE;
 CREATE TABLE "user"
 (
     id UUID DEFAULT gen_random_uuid(),
+    name VARCHAR(20) NOT NULL,
+    surname VARCHAR(20) NOT NULL,
     login VARCHAR(50) NOT NULL ,
     password VARCHAR(50) NOT NULL,
     role USER_ROLE NOT NULL ,

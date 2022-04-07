@@ -8,8 +8,6 @@ import doobie.hikari.HikariTransactor
 import doobie.util.ExecutionContexts
 import org.flywaydb.core.Flyway
 
-// TODO - check how to migrate changes from sqk files if checksum was changed
-
 object db {
   def transactor[F[_]: Async](
     dbConf: DbConf
@@ -36,6 +34,8 @@ object db {
         Flyway
           .configure()
           .dataSource(dbConf.url, dbConf.user, dbConf.password)
+          // TODO - don't forget to remove this option
+          .outOfOrder(true)
           .locations(s"${dbConf.migrationLocation}/${dbConf.provider}")
           .load()
       )

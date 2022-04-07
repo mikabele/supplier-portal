@@ -11,6 +11,7 @@ object attachment {
 
   final case class ReadAttachment(
     id:         UuidStr,
+    productId:  UuidStr,
     attachment: UrlStr
   )
 }

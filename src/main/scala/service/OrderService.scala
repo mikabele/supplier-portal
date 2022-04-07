@@ -9,9 +9,9 @@ import service.impl.OrderServiceImpl
 import java.util.UUID
 
 trait OrderService[F[_]] {
-  def viewActiveOrders(): F[List[ReadOrderDto]]
+  def cancelOrder(id: UUID): F[ErrorsOr[Int]]
 
-  def updateOrder(updateDto: UpdateOrderDto): F[ErrorsOr[UpdateOrderDto]]
+  def viewActiveOrders(): F[List[ReadOrderDto]]
 
   def createOrder(createDto: CreateOrderDto): F[ErrorsOr[UUID]]
 }

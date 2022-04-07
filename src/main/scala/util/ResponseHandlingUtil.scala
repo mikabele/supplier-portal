@@ -6,9 +6,9 @@ import cats.syntax.all._
 import org.http4s.circe.CirceEntityCodec.circeEntityEncoder
 import org.http4s.dsl.Http4sDsl
 import org.http4s.{EntityEncoder, InvalidMessageBodyFailure, Response}
-import service.error.general.{BadRequestError, ErrorsOr, ForbiddenError, GeneralError, NotFoundError}
+import service.error.general._
 import service.error.validation.ValidationError
-import controller.implicits._
+import org.http4s.server.middleware.Logger
 
 object ResponseHandlingUtil {
   def errorsToHttpResponse[F[_]: Concurrent](
@@ -39,6 +39,9 @@ object ResponseHandlingUtil {
         case Left(chain)     => errorsToHttpResponse(chain)
         case Right(response) => Ok(response)
       }
-      .handleErrorWith(ex => InternalServerError(ex.getMessage))
+      .handleErrorWith {
+        case e: InvalidMessageBodyFailure => BadRequest(e.getMessage)
+        case e => InternalServerError(e.getMessage)
+      }
   }
 }

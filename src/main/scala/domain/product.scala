@@ -5,10 +5,10 @@ import domain.category._
 import domain.supplier._
 import doobie.postgres.implicits._
 import enumeratum.EnumEntry.Snakecase
-import types._
 import enumeratum._
 import io.circe.Json
 import io.circe.syntax._
+import types._
 
 object product {
 
@@ -30,6 +30,17 @@ object product {
     status:            ProductStatus,
     publicationPeriod: DateStr,
     attachments:       List[ReadAttachment]
+  )
+
+  final case class DbReadProduct(
+    id:                UuidStr,
+    name:              NonEmptyStr,
+    category:          Category,
+    supplier:          Supplier,
+    price:             NonNegativeFloat,
+    description:       String,
+    status:            ProductStatus,
+    publicationPeriod: DateStr
   )
 
   final case class UpdateProduct(
