@@ -26,12 +26,14 @@ object DeliveryController {
         marshalResponse(res)
     }
 
-    def delivered(): HttpRoutes[F] = HttpRoutes.of[F] { case PUT -> Root / "api" / "delivery" / UUIDVar(id) =>
-      val res = for {
-        result <- deliveryService.delivered(id)
-      } yield result
+    def delivered(): HttpRoutes[F] = HttpRoutes.of[F] {
+      case PUT -> Root / "api" / "delivery" / UUIDVar(courierId) //temp field
+          / UUIDVar(id) =>
+        val res = for {
+          result <- deliveryService.delivered(courierId, id)
+        } yield result
 
-      marshalResponse(res)
+        marshalResponse(res)
     }
 
     def showDeliveries(): HttpRoutes[F] = HttpRoutes.of[F] { case GET -> Root / "api" / "delivery" =>

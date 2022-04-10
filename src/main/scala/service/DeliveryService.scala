@@ -3,7 +3,6 @@ package service
 import cats.effect.kernel.Sync
 import dto.delivery.{DeliveryCreateDto, DeliveryReadDto}
 import repository.{DeliveryRepository, OrderRepository}
-import service.error.general.ErrorsOr
 import service.impl.DeliveryServiceImpl
 import util.ConvertToErrorsUtil.ErrorsOr
 
@@ -12,7 +11,7 @@ import java.util.UUID
 trait DeliveryService[F[_]] {
   def showDeliveries(): F[List[DeliveryReadDto]]
 
-  def delivered(id:             UUID): F[ErrorsOr[Int]]
+  def delivered(courierId:      UUID, id:        UUID):              F[ErrorsOr[Int]]
   def createDelivery(courierId: UUID, createDto: DeliveryCreateDto): F[ErrorsOr[UUID]]
 }
 

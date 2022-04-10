@@ -1,6 +1,7 @@
 package util
 
 import cats.data.Chain
+import cats.syntax.all._
 import domain.order.OrderStatus
 import service.error.general.GeneralError
 import service.error.order.OrderError.InvalidStatusToUpdate

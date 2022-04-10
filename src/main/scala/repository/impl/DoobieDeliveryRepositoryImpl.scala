@@ -1,6 +1,7 @@
 package repository.impl
 
 import cats.effect.Sync
+import cats.syntax.all._
 import domain.delivery._
 import doobie.Transactor
 import doobie.implicits._
@@ -21,10 +22,12 @@ class DoobieDeliveryRepositoryImpl[F[_]: Sync](tx: Transactor[F]) extends Delive
   private val updateOrderStatusQuery = fr"UPDATE public.order SET status = "
   private val updateDeliveryQuery    = fr"UPDATE delivery "
 
-  override def delivered(id: UUID): F[Int] = {
+  override def delivered(courierId: UUID, id: UUID): F[Int] = {
     val res = for {
-      count <- (updateOrderStatusQuery ++ fr"'delivered'::order_status" ++ fr" WHERE id = $id").update.run
-      _     <- (updateDeliveryQuery ++ fr"SET delivery_finish_date = CURRENT_DATE" ++ fr" WHERE order_id = $id").update.run
+      c <-
+        (updateDeliveryQuery ++ fr"SET delivery_finish_date = CURRENT_DATE" ++
+          fr" WHERE order_id = $id AND courier_id = $courierId").update.run
+      count <- (updateOrderStatusQuery ++ fr"'delivered'::order_status" ++ fr" WHERE id = $id AND $c>0").update.run
     } yield count
 
     res.transact(tx)

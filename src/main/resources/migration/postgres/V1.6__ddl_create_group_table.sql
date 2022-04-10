@@ -1,4 +1,4 @@
-DROP TABLE IF EXISTS "group";
+DROP TABLE IF EXISTS "group" CASCADE ;
 CREATE TABLE "group"
 (
     id UUID DEFAULT gen_random_uuid(),
@@ -6,7 +6,7 @@ CREATE TABLE "group"
     PRIMARY KEY (id)
 );
 
-DROP TABLE IF EXISTS group_to_user;
+DROP TABLE IF EXISTS group_to_user CASCADE ;
 CREATE TABLE group_to_user
 (
   user_id UUID NOT NULL,
@@ -16,7 +16,7 @@ CREATE TABLE group_to_user
   CONSTRAINT group_fk FOREIGN KEY (group_id) REFERENCES "group"(id)
 );
 
-DROP TABLE IF EXISTS group_to_product;
+DROP TABLE IF EXISTS group_to_product CASCADE ;
 CREATE TABLE group_to_product
 (
     product_id UUID NOT NULL,

@@ -48,12 +48,12 @@ class DoobieSubscriptionRepositoryImpl[F[_]: Sync](tx: Transactor[F]) extends Su
   }
 
   override def removeSupplierSubscription(userId: UUID, supplier: SupplierSubscriptionDomain): F[Int] = {
-    (removeSupplierSubQuery ++ fr"supplier_subscription WHERE user_id=$userId::UUID AND supplier_id=${supplier.supplierId})").update.run
+    (removeSupplierSubQuery ++ fr" WHERE user_id=$userId::UUID AND supplier_id=${supplier.supplierId}").update.run
       .transact(tx)
   }
 
   override def removeCategorySubscription(userId: UUID, category: CategorySubscriptionDomain): F[Int] = {
-    (removeCategorySubQuery ++ fr"category_subscription WHERE user_id=$userId::UUID AND category_id=${category.category})").update.run
+    (removeCategorySubQuery ++ fr" WHERE user_id=$userId::UUID AND category_id=${category.category}").update.run
       .transact(tx)
   }
 

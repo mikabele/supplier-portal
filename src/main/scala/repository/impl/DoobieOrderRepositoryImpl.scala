@@ -26,11 +26,13 @@ class DoobieOrderRepositoryImpl[F[_]: Sync](tx: Transactor[F]) extends OrderRepo
 
   private val insertOrderQuery      = fr"INSERT INTO public.order(user_id,total,address) VALUES ("
   private val insertOrderItemsQuery = fr"INSERT INTO order_to_product(order_id,product_id,count) SELECT "
+  private val courierGetOrdersQuery = fr" OR o.status='ordered'::order_status AND EXISTS (SELECT 1 FROM public.user "
 
   override def viewActiveOrders(userId: UUID): F[List[OrderReadDomain]] = {
     for {
       orders <- (selectOrdersQuery
-        ++ fr" WHERE o.status != 'cancelled'::order_status AND o.user_id=$userId")
+        ++ fr" WHERE (o.status != 'cancelled'::order_status AND o.user_id=$userId) "
+        ++ courierGetOrdersQuery ++ fr" WHERE id = $userId AND role = 'courier'::user_role)")
         .query[OrderReadDbDomain]
         .to[List]
         .transact(tx)

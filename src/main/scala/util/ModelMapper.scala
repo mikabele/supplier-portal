@@ -1,7 +1,7 @@
 package util
 
-import cats.data.{Chain, EitherT, NonEmptyList, ValidatedNec}
-import cats.implicits._
+import cats.data.{NonEmptyList, ValidatedNec}
+import cats.syntax.all._
 import domain.attachment._
 import domain.criteria.CriteriaDomain
 import domain.delivery.{DeliveryCreateDomain, DeliveryReadDomain}
@@ -22,7 +22,6 @@ import dto.supplier.SupplierDto
 import dto.user.ReadAuthorizedUserDto
 import service.error.general.GeneralError
 import service.error.group.ProductGroupError.{DuplicatedProductInGroup, DuplicatedUserInGroup, EmptyGroup}
-import service.error.order.OrderError.{DuplicatedProductInOrder, EmptyOrder}
 import types._
 import util.RefinedValidator.refinedValidation
 
@@ -137,12 +136,8 @@ object ModelMapper {
   object DtoToDomain {
 
     def validateCreateDeliveryDto(dto: DeliveryCreateDto): ValidatedNec[GeneralError, DeliveryCreateDomain] = {
-      val courierId: ValidatedNec[GeneralError, UuidStr] = refinedValidation(dto.courierId)
-      val orderId:   ValidatedNec[GeneralError, UuidStr] = refinedValidation(dto.orderId)
-      (
-        courierId,
-        orderId
-      ).mapN(DeliveryCreateDomain)
+      val orderId: ValidatedNec[GeneralError, UuidStr] = refinedValidation(dto.orderId)
+      orderId.map(DeliveryCreateDomain)
     }
 
     def validateCreateProductGroupDto(dto: GroupCreateDto): ValidatedNec[GeneralError, GroupCreateDomain] = {
@@ -168,7 +163,7 @@ object ModelMapper {
 
       def validateUserIds: ValidatedNec[GeneralError, NonEmptyList[UuidStr]] = {
         val userIds: ValidatedNec[GeneralError, List[UuidStr]] = dto.userIds.traverse(id => refinedValidation(id))
-        userIds.andThen(tryConvertToNel)
+        userIds.andThen(checkDuplicates).andThen(tryConvertToNel)
       }
 
       (
@@ -255,12 +250,18 @@ object ModelMapper {
     def validateCriteriaDto(dto: CriteriaDto): ValidatedNec[GeneralError, CriteriaDomain] = {
       val startDate: ValidatedNec[GeneralError, Option[DateStr]] = dto.startDate.traverse(p => refinedValidation(p))
       val endDate:   ValidatedNec[GeneralError, Option[DateStr]] = dto.endDate.traverse(p => refinedValidation(p))
+      val minPrice: ValidatedNec[GeneralError, Option[NonNegativeFloat]] =
+        dto.minPrice.traverse(p => refinedValidation(p))
+      val maxPrice: ValidatedNec[GeneralError, Option[NonNegativeFloat]] =
+        dto.maxPrice.traverse(p => refinedValidation(p))
       (
         dto.name.traverse(_.validNec),
         dto.categoryName.traverse(_.validNec),
         dto.description.traverse(_.validNec),
         dto.supplierName.traverse(_.validNec),
         dto.status.validNec,
+        minPrice,
+        maxPrice,
         startDate,
         endDate
       ).mapN(CriteriaDomain)
@@ -277,25 +278,18 @@ object ModelMapper {
       ).mapN(SupplierDomain)
     }
 
+    // TODO - remove validatedNec from this method
     def validateCategorySubscriptionDto(
       dto: CategorySubscriptionDto
     ): ValidatedNec[GeneralError, CategorySubscriptionDomain] = {
-      val userId: ValidatedNec[GeneralError, UuidStr] = refinedValidation(dto.userId)
-      (
-        userId,
-        dto.category.validNec
-      ).mapN(CategorySubscriptionDomain)
+      dto.category.validNec[GeneralError].map(CategorySubscriptionDomain)
     }
 
     def validateSupplierSubscriptionDto(
       dto: SupplierSubscriptionDto
     ): ValidatedNec[GeneralError, SupplierSubscriptionDomain] = {
-      val userId:     ValidatedNec[GeneralError, UuidStr]     = refinedValidation(dto.userId)
       val supplierId: ValidatedNec[GeneralError, PositiveInt] = refinedValidation(dto.supplierId)
-      (
-        userId,
-        supplierId
-      ).mapN(SupplierSubscriptionDomain)
+      supplierId.map(SupplierSubscriptionDomain)
     }
 
     def validateOrderItemDto(dto: OrderProductDto): ValidatedNec[GeneralError, OrderProductCreateDomain] = {
@@ -311,34 +305,29 @@ object ModelMapper {
 
       def validateAddress: ValidatedNec[GeneralError, NonEmptyStr] = refinedValidation(dto.address)
 
-      def checkDuplicates(productIds: List[UuidStr]): ValidatedNec[GeneralError, List[UuidStr]] = {
+      def checkDuplicates(productIds: List[String]): ValidatedNec[GeneralError, List[String]] = {
         val duplicatedIds = productIds.diff(productIds.distinct)
         if (duplicatedIds.isEmpty) productIds.validNec
-        else duplicatedIds.traverse(id => DuplicatedProductInGroup(id.value).invalidNec)
+        else duplicatedIds.traverse(id => DuplicatedProductInGroup(id).invalidNec)
       }
 
-      def tryConvertToNel(productIds: List[UuidStr]): ValidatedNec[GeneralError, NonEmptyList[UuidStr]] = {
+      def tryConvertToNel(
+        productIds: List[OrderProductCreateDomain]
+      ): ValidatedNec[GeneralError, NonEmptyList[OrderProductCreateDomain]] = {
         productIds.toNel.toValidNec(EmptyGroup)
       }
 
       def validateOrderProducts: ValidatedNec[GeneralError, NonEmptyList[OrderProductCreateDomain]] = {
         val orderProducts: ValidatedNec[GeneralError, List[OrderProductCreateDomain]] =
           dto.orderItems.traverse(validateOrderItemDto)
-        orderProducts.andThen(checkDuplicates).andThen(tryConvertToNel)
+        orderProducts.productL(checkDuplicates(dto.orderItems.map(_.productId))).andThen(tryConvertToNel)
       }
 
       (
-        validateOrderProducts,
+        validateOrderProducts.map(_.toList),
+        0f.validNec,
         validateAddress
       ).mapN(OrderCreateDomain)
-    }
-
-    def validateUpdateOrderDto(dto: OrderUpdateDto): ValidatedNec[GeneralError, OrderUpdateDomain] = {
-      val id: ValidatedNec[GeneralError, UuidStr] = refinedValidation(dto.id)
-      (
-        id,
-        dto.orderStatus.validNec
-      ).mapN(OrderUpdateDomain)
     }
   }
 

@@ -3,7 +3,8 @@ import eu.timepit.refined.numeric._
 import eu.timepit.refined.string._
 
 package object types {
-  type UuidStr          = String Refined Uuid
+  type UuidStr = String Refined Uuid
+  // TODO - fix this type
   type NonEmptyStr      = String Refined MatchesRegex["\\w+"]
   type PhoneStr         = String Refined MatchesRegex["\\+\\d+"]
   type EmailStr         = String Refined MatchesRegex["\\w+@\\w+.\\w+"]

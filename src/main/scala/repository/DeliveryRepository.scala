@@ -8,7 +8,7 @@ import repository.impl.DoobieDeliveryRepositoryImpl
 import java.util.UUID
 
 trait DeliveryRepository[F[_]] {
-  def delivered(id: UUID): F[Int]
+  def delivered(courierId: UUID, id: UUID): F[Int]
 
   def createDelivery(courierId: UUID, domain: DeliveryCreateDomain): F[UUID]
 

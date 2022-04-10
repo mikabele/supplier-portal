@@ -7,6 +7,7 @@ import domain.order.OrderStatus
 import dto.delivery.{DeliveryCreateDto, DeliveryReadDto}
 import repository.{DeliveryRepository, OrderRepository}
 import service.DeliveryService
+import service.error.delivery.DeliveryError.InvalidDeliveryCourier
 import service.error.general.GeneralError
 import service.error.order.OrderError.OrderNotFound
 import util.ConvertToErrorsUtil.{ErrorsOr, _}
@@ -25,11 +26,12 @@ class DeliveryServiceImpl[F[_]: Monad](deliveryRepository: DeliveryRepository[F]
     } yield res.map(readDeliveryDomainToDto)
   }
 
-  override def delivered(id: UUID): F[ErrorsOr[Int]] = {
+  override def delivered(courierId: UUID, id: UUID): F[ErrorsOr[Int]] = {
     val res = for {
       order <- EitherT.fromOptionF(orderRepository.getById(id), Chain[GeneralError](OrderNotFound(id.toString)))
       _     <- EitherT.fromEither(checkCurrentStatus(order.orderStatus, OrderStatus.Delivered))
-      count <- deliveryRepository.delivered(id).toErrorsOr
+      count <- deliveryRepository.delivered(courierId, id).toErrorsOr
+      _     <- EitherT.cond(count > 0, (), Chain[GeneralError](InvalidDeliveryCourier))
     } yield count
 
     res.value
@@ -42,7 +44,7 @@ class DeliveryServiceImpl[F[_]: Monad](deliveryRepository: DeliveryRepository[F]
         orderRepository.getById(UUID.fromString(domain.orderId.value)),
         Chain[GeneralError](OrderNotFound(domain.orderId.value))
       )
-      _  <- EitherT.fromEither(checkCurrentStatus(order.orderStatus, OrderStatus.Delivered))
+      _  <- EitherT.fromEither(checkCurrentStatus(order.orderStatus, OrderStatus.Assigned))
       id <- deliveryRepository.createDelivery(courierId, domain).toErrorsOr
     } yield id
 

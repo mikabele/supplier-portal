@@ -10,6 +10,8 @@ object criteria {
     description:  Option[String]        = None,
     supplierName: Option[String]        = None,
     status:       Option[ProductStatus] = None,
+    minPrice:     Option[Float]         = None,
+    maxPrice:     Option[Float]         = None,
     startDate:    Option[String]        = None,
     endDate:      Option[String]        = None
   )

@@ -48,7 +48,7 @@ class ProductGroupServiceImpl[F[_]: Monad](
       _ <- EitherT.cond(
         invalidUserIds.isEmpty,
         (),
-        Chain.fromSeq(invalidUserIds.map(id => UserIsNotInGroup(id.value)))
+        Chain.fromSeq(invalidUserIds.map(id => UserIsNotInGroup(id.value, group.id.value)))
       )
       count <- productGroupRepository.removeUsers(domain).toErrorsOr
     } yield count

@@ -35,8 +35,10 @@ class DoobieProductRepositoryImpl[F[_]: Sync](tx: Transactor[F]) extends Product
   private val removeAttachmentQuery = fr"DELETE FROM attachment "
   private val findUserInGroupQuery = fr" p.id IN (select gtp.product_id FROM group_to_product AS gtp " ++
     fr"INNER JOIN public.group AS g ON g.id = gtp.group_id INNER JOIN group_to_user AS gtu ON g.id=gtu.group_id "
+  private val findManagerQuery        = fr"EXISTS (SELECT 1 FROM public.user WHERE role = 'manager'::user_role AND "
+  private val deleteGroupProductQuery = fr"DELETE FROM group_to_product "
+  private val deleteFromOrderQuery    = fr"DELETE FROM order_to_product "
 
-  // TODO - implement logic where new product appeared need to insert new record in product groups in superadmin group(managers should have access to all products)
   override def addProduct(product: ProductCreateDomain): F[UUID] = {
     val fragment =
       addProductQuery ++
@@ -62,15 +64,22 @@ class DoobieProductRepositoryImpl[F[_]: Sync](tx: Transactor[F]) extends Product
   }
 
   override def deleteProduct(id: UUID): F[Int] = {
-    (deleteProductQuery ++ fr"WHERE id = $id").update.run.transact(tx)
+    val res = for {
+      _     <- (deleteGroupProductQuery ++ fr" WHERE product_id = $id").update.run
+      _     <- (deleteFromOrderQuery ++ fr" WHERE product_id = $id").update.run
+      _     <- (removeAttachmentQuery ++ fr" WHERE product_id = $id").update.run
+      count <- (deleteProductQuery ++ fr"WHERE id = $id").update.run
+    } yield count
+
+    res.transact(tx)
   }
 
   override def viewProducts(userId: UUID, statuses: NonEmptyList[ProductStatus]): F[List[ProductReadDomain]] = {
     for {
-      products <- (getProductsQuery ++ fr" WHERE " ++ in(
+      products <- (getProductsQuery ++ fr" WHERE " ++ findManagerQuery ++ fr"id = $userId) OR (" ++ in(
         fr"status",
         statuses
-      ) ++ fr" AND " ++ findUserInGroupQuery ++ fr" WHERE gtu.user_id = $userId)")
+      ) ++ fr" AND " ++ findUserInGroupQuery ++ fr" WHERE gtu.user_id = $userId))")
         .query[ProductReadDbDomain]
         .to[List]
         .transact(tx)
@@ -104,6 +113,8 @@ class DoobieProductRepositoryImpl[F[_]: Sync](tx: Transactor[F]) extends Product
         criteria.description.map(value => fr"p.description LIKE $value"),
         criteria.supplierName.map(value => fr"s.name LIKE $value"),
         criteria.status.map(value => fr"p.status = $value"),
+        criteria.minPrice.map(value => fr"p.price >= $value"),
+        criteria.maxPrice.map(value => fr"p.price <= $value"),
         criteria.startDate.map(value => fr"p.publication_period >= $value::DATE"),
         criteria.endDate.map(value => fr"p.publication_period < $value::DATE")
       ) ++ fr" AND " ++ findUserInGroupQuery ++ fr" WHERE gtu.user_id = $userId)")

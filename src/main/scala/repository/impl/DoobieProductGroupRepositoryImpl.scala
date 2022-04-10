@@ -57,9 +57,9 @@ class DoobieProductGroupRepositoryImpl[F[_]: Sync](tx: Transactor[F]) extends Pr
 
   override def deleteGroup(id: UUID): F[Int] = {
     val res = for {
-      count <- (deleteProductGroupQuery ++ fr" WHERE id = $id").update.run
       _     <- (deleteProductsQuery ++ fr" WHERE group_id = $id").update.run
       _     <- (deleteUsersQuery ++ fr" WHERE group_id = $id").update.run
+      count <- (deleteProductGroupQuery ++ fr" WHERE id = $id").update.run
     } yield count
 
     res.transact(tx)
