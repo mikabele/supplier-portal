@@ -2,12 +2,12 @@ package dto
 
 import domain.category.Category
 import domain.product.ProductStatus
-import dto.attachment.ReadAttachmentDto
+import dto.attachment.AttachmentReadDto
 import dto.supplier.SupplierDto
 
 object product {
 
-  final case class CreateProductDto(
+  final case class ProductCreateDto(
     name:        String,
     category:    Category,
     supplierId:  Int,
@@ -15,7 +15,7 @@ object product {
     description: Option[String]
   )
 
-  final case class UpdateProductDto(
+  final case class ProductUpdateDto(
     id:          String,
     name:        String,
     category:    Category,
@@ -25,7 +25,7 @@ object product {
     status:      ProductStatus
   )
 
-  final case class ReadProductDto(
+  final case class ProductReadDto(
     id:                String,
     name:              String,
     category:          Category,
@@ -34,6 +34,6 @@ object product {
     description:       String,
     status:            ProductStatus,
     publicationPeriod: String,
-    attachments:       List[ReadAttachmentDto]
+    attachments:       List[AttachmentReadDto]
   )
 }

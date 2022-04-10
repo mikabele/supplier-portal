@@ -4,12 +4,12 @@ import types._
 
 object attachment {
 
-  final case class CreateAttachment(
+  final case class AttachmentCreateDomain(
     attachment: UrlStr,
     productId:  UuidStr
   )
 
-  final case class ReadAttachment(
+  final case class AttachmentReadDomain(
     id:         UuidStr,
     productId:  UuidStr,
     attachment: UrlStr

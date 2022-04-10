@@ -2,12 +2,12 @@ package dto
 
 object attachment {
 
-  final case class CreateAttachmentDto(
+  final case class AttachmentCreateDto(
     attachment: String,
     productId:  String
   )
 
-  final case class ReadAttachmentDto(
+  final case class AttachmentReadDto(
     id:         String,
     attachment: String
   )

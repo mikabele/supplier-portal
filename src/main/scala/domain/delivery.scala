@@ -6,12 +6,11 @@ import order._
 
 object delivery {
 
-  final case class CreateDelivery(
-    courierId: UuidStr,
-    orderId:   UuidStr
+  final case class DeliveryCreateDomain(
+    orderId: UuidStr
   )
 
-  final case class ReadDelivery(
+  final case class DeliveryReadDomain(
     id:                 UuidStr,
     orderId:            UuidStr,
     courier:            ReadAuthorizedUser,

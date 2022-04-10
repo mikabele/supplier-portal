@@ -4,9 +4,9 @@ import cats.effect.unsafe.implicits._
 import cats.effect.{Async, IO, Resource}
 import domain.category.Category
 import domain.product.ProductStatus
-import dto.attachment.{CreateAttachmentDto, ReadAttachmentDto}
+import dto.attachment.{AttachmentCreateDto, AttachmentReadDto}
 import dto.criteria.CriteriaDto
-import dto.product.{CreateProductDto, ReadProductDto, UpdateProductDto}
+import dto.product.{ProductCreateDto, ProductReadDto, ProductUpdateDto}
 import dto.supplier.SupplierDto
 import io.circe.generic.auto._
 import org.http4s.Request
@@ -21,6 +21,7 @@ import org.scalatest.funspec.AnyFunSpec
 import java.util.UUID
 import scala.language.postfixOps
 
+//TODO - rewrite tests
 class ProductControllerTest extends AnyFunSpec {
 
   def clientResource[F[_]: Async]: Resource[F, Client[F]] = {
@@ -34,7 +35,7 @@ class ProductControllerTest extends AnyFunSpec {
     val productAPIAddress = uri"http://localhost:8088/api/product"
     it(s"should return List of ReadProductDto instances for GET request $productAPIAddress") {
       val expected = List(
-        ReadProductDto(
+        ProductReadDto(
           "adc88583-8537-4ee1-bbad-50a0d090e419",
           "carrot",
           Category.Food,
@@ -44,15 +45,15 @@ class ProductControllerTest extends AnyFunSpec {
           ProductStatus.Available,
           "2022-04-02",
           List(
-            ReadAttachmentDto(
+            AttachmentReadDto(
               "0d3a671d-8798-49da-9d38-34a6bcbe5a0a",
               "https://upload.wikimedia.org/wikipedia/commons/d/dc/Carrot-fb.jpg"
             ),
-            ReadAttachmentDto(
+            AttachmentReadDto(
               "8aba309d-efcf-43be-849d-8f337235ea1d",
               "https://upload.wikimedia.org/wikipedia/commons/d/dc/Carrot-fb.jpg"
             ),
-            ReadAttachmentDto(
+            AttachmentReadDto(
               "47f683ab-6e24-4476-a7c0-dcb386f041b3",
               "https://upload.wikimedia.org/wikipedia/commons/d/dc/Carrot-jpg"
             )
@@ -64,7 +65,7 @@ class ProductControllerTest extends AnyFunSpec {
       client
         .use(cl => {
           for {
-            response <- cl.fetchAs[List[ReadProductDto]](request)
+            response <- cl.fetchAs[List[ProductReadDto]](request)
           } yield assert(response == expected)
         })
         .unsafeRunSync()
@@ -72,7 +73,7 @@ class ProductControllerTest extends AnyFunSpec {
 
     it("should create object when POST request was sent") {
 
-      val body    = CreateProductDto("meeta", Category.Food, 1, 25.2f, None)
+      val body    = ProductCreateDto("meeta", Category.Food, 1, 25.2f, None)
       val request = Request[IO](method = POST, uri = productAPIAddress).withEntity(body)
       client
         .use(cl => {
@@ -95,7 +96,7 @@ class ProductControllerTest extends AnyFunSpec {
     }
 
     it("should update object for given id with given params") {
-      val body    = CreateProductDto("meeta", Category.Food, 1, 25.2f, None)
+      val body    = ProductCreateDto("meeta", Category.Food, 1, 25.2f, None)
       val request = Request[IO](method = POST, uri = productAPIAddress).withEntity(body)
       client
         .use(cl => {
@@ -106,7 +107,7 @@ class ProductControllerTest extends AnyFunSpec {
                 case Successful(r) =>
                   for {
                     id <- r.as[UUID]
-                    b = UpdateProductDto(
+                    b = ProductUpdateDto(
                       id.toString,
                       "meeta",
                       Category.Food,
@@ -116,7 +117,7 @@ class ProductControllerTest extends AnyFunSpec {
                       ProductStatus.InProcessing
                     )
                     updateRequest = Request[IO](method = PUT, uri = productAPIAddress).withEntity(b)
-                    response     <- cl.fetchAs[UpdateProductDto](updateRequest)
+                    response     <- cl.fetchAs[ProductUpdateDto](updateRequest)
                     deleteRequest = Request[IO](method = DELETE, uri = productAPIAddress / id)
                     _            <- cl.status(deleteRequest)
                   } yield assert(response == b)
@@ -129,7 +130,7 @@ class ProductControllerTest extends AnyFunSpec {
     }
 
     it("should delete product if DELETE request given") {
-      val body    = CreateProductDto("meeta", Category.Food, 1, 25.2f, None)
+      val body    = ProductCreateDto("meeta", Category.Food, 1, 25.2f, None)
       val request = Request[IO](method = POST, uri = productAPIAddress).withEntity(body)
       client
         .use(cl => {
@@ -149,7 +150,7 @@ class ProductControllerTest extends AnyFunSpec {
       val body    = CriteriaDto(name = Some("ca%"), categoryName = Some("foo%"))
       val request = Request[IO](method = POST, uri = productAPIAddress / "search").withEntity(body)
       val expected = List(
-        ReadProductDto(
+        ProductReadDto(
           "adc88583-8537-4ee1-bbad-50a0d090e419",
           "carrot",
           Category.Food,
@@ -159,15 +160,15 @@ class ProductControllerTest extends AnyFunSpec {
           ProductStatus.Available,
           "2022-04-02",
           List(
-            ReadAttachmentDto(
+            AttachmentReadDto(
               "0d3a671d-8798-49da-9d38-34a6bcbe5a0a",
               "https://upload.wikimedia.org/wikipedia/commons/d/dc/Carrot-fb.jpg"
             ),
-            ReadAttachmentDto(
+            AttachmentReadDto(
               "8aba309d-efcf-43be-849d-8f337235ea1d",
               "https://upload.wikimedia.org/wikipedia/commons/d/dc/Carrot-fb.jpg"
             ),
-            ReadAttachmentDto(
+            AttachmentReadDto(
               "47f683ab-6e24-4476-a7c0-dcb386f041b3",
               "https://upload.wikimedia.org/wikipedia/commons/d/dc/Carrot-jpg"
             )
@@ -177,14 +178,14 @@ class ProductControllerTest extends AnyFunSpec {
       client
         .use(cl => {
           for {
-            response <- cl.fetchAs[List[ReadProductDto]](request)
+            response <- cl.fetchAs[List[ProductReadDto]](request)
           } yield assert(response == expected)
         })
         .unsafeRunSync()
     }
 
     it("should return ProductNotFound error with status code 404 if you try to delete non-exists product") {
-      val body    = CreateProductDto("meeta", Category.Food, 1, 25.2f, None)
+      val body    = ProductCreateDto("meeta", Category.Food, 1, 25.2f, None)
       val request = Request[IO](method = POST, uri = productAPIAddress).withEntity(body)
       client
         .use(cl => {
@@ -200,7 +201,7 @@ class ProductControllerTest extends AnyFunSpec {
     }
 
     it("should return BadRequestError if refined validation failed") {
-      val body    = CreateProductDto("meeta", Category.Food, -1, -25.2f, None)
+      val body    = ProductCreateDto("meeta", Category.Food, -1, -25.2f, None)
       val request = Request[IO](method = POST, uri = productAPIAddress).withEntity(body)
       client
         .use(cl => {
@@ -214,7 +215,7 @@ class ProductControllerTest extends AnyFunSpec {
     it(
       "should return ProductNotFound error with status code NotFound if you try to attach something to non-exists product"
     ) {
-      val body = CreateAttachmentDto(
+      val body = AttachmentCreateDto(
         "https://upload.wikimedia.org/wikipedia/commons/d/dc/Carrot-fb.jpg",
         "7befac6d-9e68-4064-927c-b9700438fea1"
       )
@@ -263,7 +264,7 @@ class ProductControllerTest extends AnyFunSpec {
     }
 
     it("should return NotFoundError if Supplier doesn't exists") {
-      val body    = CreateProductDto("meeta", Category.Food, 10, 25.2f, None)
+      val body    = ProductCreateDto("meeta", Category.Food, 10, 25.2f, None)
       val request = Request[IO](method = POST, uri = productAPIAddress).withEntity(body)
       client
         .use(cl => {

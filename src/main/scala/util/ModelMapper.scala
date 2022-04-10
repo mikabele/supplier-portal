@@ -1,258 +1,355 @@
 package util
 
-import cats.data.ValidatedNec
+import cats.data.{Chain, EitherT, NonEmptyList, ValidatedNec}
 import cats.implicits._
 import domain.attachment._
-import domain.criteria.Criteria
-import domain.delivery.{CreateDelivery, ReadDelivery}
-import domain.order.{CreateOrder, CreateOrderItem, DbReadOrder, ReadOrder, ReadOrderItem, UpdateOrder}
+import domain.criteria.CriteriaDomain
+import domain.delivery.{DeliveryCreateDomain, DeliveryReadDomain}
+import domain.group._
+import domain.order._
 import domain.product._
-import domain.subscription.{CategorySubscription, SupplierSubscription}
-import domain.supplier.Supplier
+import domain.subscription.{CategorySubscriptionDomain, SupplierSubscriptionDomain}
+import domain.supplier.SupplierDomain
 import domain.user.ReadAuthorizedUser
 import dto.attachment._
 import dto.criteria.CriteriaDto
-import dto.delivery.{CreateDeliveryDto, ReadDeliveryDto}
-import dto.order.{CreateOrderDto, OrderItemDto, ReadOrderDto, UpdateOrderDto}
+import dto.delivery.{DeliveryCreateDto, DeliveryReadDto}
+import dto.group.{GroupCreateDto, GroupReadDto, GroupWithProductsDto, GroupWithUsersDto}
+import dto.order.{OrderCreateDto, OrderProductDto, OrderReadDto, OrderUpdateDto}
 import dto.product._
 import dto.subscription.{CategorySubscriptionDto, SupplierSubscriptionDto}
 import dto.supplier.SupplierDto
 import dto.user.ReadAuthorizedUserDto
 import service.error.general.GeneralError
+import service.error.group.ProductGroupError.{DuplicatedProductInGroup, DuplicatedUserInGroup, EmptyGroup}
+import service.error.order.OrderError.{DuplicatedProductInOrder, EmptyOrder}
 import types._
 import util.RefinedValidator.refinedValidation
 
 object ModelMapper {
   // TODO - find out how to make isomorphism between Dto and Domain (refined supported)
+  // TODO - try to use circe-refined module and refined types in DTO
 
-  def createProductDomainToDto(product: CreateProduct): CreateProductDto = {
-    CreateProductDto(
-      product.name.value,
-      product.category,
-      product.supplierId.value,
-      product.price.value,
-      product.description
-    )
+  object DomainToDto {
+
+    def readProductGroupDomainToDto(domain: GroupReadDomain): GroupReadDto = {
+      GroupReadDto(domain.id.value, domain.name.value, domain.userIds.map(_.value), domain.productIds.map(_.value))
+    }
+
+    def readAuthorizedUserDomainToDto(user: ReadAuthorizedUser): ReadAuthorizedUserDto = {
+      ReadAuthorizedUserDto(
+        user.id.value,
+        user.name.value,
+        user.surname.value,
+        user.role,
+        user.phone.value,
+        user.email.value
+      )
+    }
+
+    def readDeliveryDomainToDto(domain: DeliveryReadDomain): DeliveryReadDto = {
+      DeliveryReadDto(
+        domain.id.value,
+        domain.orderId.value,
+        readAuthorizedUserDomainToDto(domain.courier),
+        domain.deliveryStartDate.value,
+        domain.deliveryFinishDate.map(_.value)
+      )
+    }
+
+    def readOrderDomainToDto(domain: OrderReadDomain): OrderReadDto = {
+      val orderItems = domain.orderItems.map(orderItemDomainToDto)
+      OrderReadDto(
+        domain.id.value,
+        domain.userId.value,
+        orderItems,
+        domain.orderStatus,
+        domain.orderedStartDate.value,
+        domain.total.value,
+        domain.address.value
+      )
+    }
+
+    def updateOrderDomainToDto(domain: OrderUpdateDomain): OrderUpdateDto = {
+      OrderUpdateDto(domain.id.value, domain.orderStatus)
+    }
+
+    def createProductDomainToDto(product: ProductCreateDomain): ProductCreateDto = {
+      ProductCreateDto(
+        product.name.value,
+        product.category,
+        product.supplierId.value,
+        product.price.value,
+        product.description
+      )
+    }
+
+    def updateProductDomainToDto(product: ProductUpdateDomain): ProductUpdateDto = {
+      ProductUpdateDto(
+        product.id.value,
+        product.name.value,
+        product.category,
+        product.supplierId.value,
+        product.price.value,
+        product.description,
+        product.status
+      )
+    }
+
+    def readAttachmentDomainToDto(domain: AttachmentReadDomain): AttachmentReadDto = {
+      AttachmentReadDto(domain.id.value, domain.attachment.value)
+    }
+
+    def readProductDomainToDto(product: ProductReadDomain): ProductReadDto = {
+      ProductReadDto(
+        product.id.value,
+        product.name.value,
+        product.category,
+        supplierDomainToDto(product.supplier),
+        product.price.value,
+        product.description,
+        product.status,
+        product.publicationPeriod.value,
+        product.attachments.map(readAttachmentDomainToDto)
+      )
+    }
+
+    def attachmentDomainToDto(attachment: AttachmentCreateDomain): AttachmentCreateDto = {
+      AttachmentCreateDto(
+        attachment.attachment.value,
+        attachment.productId.value
+      )
+    }
+
+    def supplierDomainToDto(supplier: SupplierDomain): SupplierDto = {
+      SupplierDto(
+        supplier.id.value,
+        supplier.name.value,
+        supplier.address.value
+      )
+    }
+
+    def orderItemDomainToDto(domain: OrderProductReadDomain): OrderProductDto = {
+      OrderProductDto(domain.productId.value, domain.count.value)
+    }
   }
 
-  def updateProductDomainToDto(product: UpdateProduct): UpdateProductDto = {
-    UpdateProductDto(
-      product.id.value,
-      product.name.value,
-      product.category,
-      product.supplierId.value,
-      product.price.value,
-      product.description,
-      product.status
-    )
-  }
+  object DtoToDomain {
 
-  def readAttachmentDomainToDto(domain: ReadAttachment): ReadAttachmentDto = {
-    ReadAttachmentDto(domain.id.value, domain.attachment.value)
-  }
+    def validateCreateDeliveryDto(dto: DeliveryCreateDto): ValidatedNec[GeneralError, DeliveryCreateDomain] = {
+      val courierId: ValidatedNec[GeneralError, UuidStr] = refinedValidation(dto.courierId)
+      val orderId:   ValidatedNec[GeneralError, UuidStr] = refinedValidation(dto.orderId)
+      (
+        courierId,
+        orderId
+      ).mapN(DeliveryCreateDomain)
+    }
 
-  def readProductDomainToDto(product: ReadProduct): ReadProductDto = {
-    ReadProductDto(
-      product.id.value,
-      product.name.value,
-      product.category,
-      supplierDomainToDto(product.supplier),
-      product.price.value,
-      product.description,
-      product.status,
-      product.publicationPeriod.value,
-      product.attachments.map(readAttachmentDomainToDto)
-    )
-  }
+    def validateCreateProductGroupDto(dto: GroupCreateDto): ValidatedNec[GeneralError, GroupCreateDomain] = {
+      val name: ValidatedNec[GeneralError, NonEmptyStr] = refinedValidation(dto.name)
+      name.map(GroupCreateDomain)
+    }
 
-  def attachmentDomainToDto(attachment: CreateAttachment): CreateAttachmentDto = {
-    CreateAttachmentDto(
-      attachment.attachment.value,
-      attachment.productId.value
-    )
-  }
+    def validateProductGroupWithUsersDto(
+      dto: GroupWithUsersDto
+    ): ValidatedNec[GeneralError, GroupWithUsersDomain] = {
 
-  def supplierDomainToDto(supplier: Supplier): SupplierDto = {
-    SupplierDto(
-      supplier.id.value,
-      supplier.name.value,
-      supplier.address.value
-    )
-  }
+      def validateId: ValidatedNec[GeneralError, UuidStr] = refinedValidation(dto.id)
 
-  def validateCreateProductDto(productDto: CreateProductDto): ValidatedNec[GeneralError, CreateProduct] = {
-    val price: ValidatedNec[GeneralError, NonNegativeFloat] =
-      refinedValidation(productDto.price)
-    val name:     ValidatedNec[GeneralError, NonEmptyStr] = refinedValidation(productDto.name)
-    val supplier: ValidatedNec[GeneralError, PositiveInt] = refinedValidation(productDto.supplierId)
-    (
-      name,
-      productDto.category.validNec,
-      supplier,
-      price,
-      productDto.description.traverse(_.validNec)
-    ).mapN(CreateProduct)
-  }
+      def checkDuplicates(userIds: List[UuidStr]): ValidatedNec[GeneralError, List[UuidStr]] = {
+        val duplicatedIds = userIds.diff(userIds.distinct)
+        if (duplicatedIds.isEmpty) userIds.validNec
+        else duplicatedIds.traverse(id => DuplicatedUserInGroup(id.value).invalidNec)
+      }
 
-  def validateUpdateProductDto(dto: UpdateProductDto): ValidatedNec[GeneralError, UpdateProduct] = {
-    val id:         ValidatedNec[GeneralError, UuidStr]          = refinedValidation(dto.id)
-    val name:       ValidatedNec[GeneralError, NonEmptyStr]      = refinedValidation(dto.name)
-    val supplierId: ValidatedNec[GeneralError, PositiveInt]      = refinedValidation(dto.supplierId)
-    val price:      ValidatedNec[GeneralError, NonNegativeFloat] = refinedValidation(dto.price)
-    (
-      id,
-      name,
-      dto.category.validNec,
-      supplierId,
-      price,
-      dto.description.validNec,
-      dto.status.validNec
-    ).mapN(UpdateProduct)
-  }
+      def tryConvertToNel(userIds: List[UuidStr]): ValidatedNec[GeneralError, NonEmptyList[UuidStr]] = {
+        userIds.toNel.toValidNec(EmptyGroup)
+      }
 
-  def validateAttachmentDto(dto: CreateAttachmentDto): ValidatedNec[GeneralError, CreateAttachment] = {
-    val attachment: ValidatedNec[GeneralError, UrlStr]  = refinedValidation(dto.attachment)
-    val productId:  ValidatedNec[GeneralError, UuidStr] = refinedValidation(dto.productId)
-    (
-      attachment,
-      productId
-    ).mapN(CreateAttachment)
-  }
+      def validateUserIds: ValidatedNec[GeneralError, NonEmptyList[UuidStr]] = {
+        val userIds: ValidatedNec[GeneralError, List[UuidStr]] = dto.userIds.traverse(id => refinedValidation(id))
+        userIds.andThen(tryConvertToNel)
+      }
 
-  def validateCriteriaDto(dto: CriteriaDto): ValidatedNec[GeneralError, Criteria] = {
-    val startDate: ValidatedNec[GeneralError, Option[DateStr]] = dto.startDate.traverse(p => refinedValidation(p))
-    val endDate:   ValidatedNec[GeneralError, Option[DateStr]] = dto.endDate.traverse(p => refinedValidation(p))
-    (
-      dto.name.traverse(_.validNec),
-      dto.categoryName.traverse(_.validNec),
-      dto.description.traverse(_.validNec),
-      dto.supplierName.traverse(_.validNec),
-      dto.status.validNec,
-      startDate,
-      endDate
-    ).mapN(Criteria)
-  }
+      (
+        validateId,
+        validateUserIds
+      ).mapN(GroupWithUsersDomain)
+    }
 
-  def validateSupplierDto(dto: SupplierDto): ValidatedNec[GeneralError, Supplier] = {
-    val name:    ValidatedNec[GeneralError, NonEmptyStr] = refinedValidation(dto.name)
-    val address: ValidatedNec[GeneralError, NonEmptyStr] = refinedValidation(dto.address)
-    val id:      ValidatedNec[GeneralError, PositiveInt] = refinedValidation(dto.id)
-    (
-      id,
-      name,
-      address
-    ).mapN(Supplier)
-  }
+    def validateProductGroupWithProductsDto(
+      dto: GroupWithProductsDto
+    ): ValidatedNec[GeneralError, GroupWithProductsDomain] = {
 
-  def validateCategorySubscriptionDto(
-    dto: CategorySubscriptionDto
-  ): ValidatedNec[GeneralError, CategorySubscription] = {
-    val userId: ValidatedNec[GeneralError, UuidStr] = refinedValidation(dto.userId)
-    (
-      userId,
-      dto.category.validNec
-    ).mapN(CategorySubscription)
-  }
+      def validateId: ValidatedNec[GeneralError, UuidStr] = refinedValidation(dto.id)
 
-  def validateSupplierSubscriptionDto(
-    dto: SupplierSubscriptionDto
-  ): ValidatedNec[GeneralError, SupplierSubscription] = {
-    val userId:     ValidatedNec[GeneralError, UuidStr]     = refinedValidation(dto.userId)
-    val supplierId: ValidatedNec[GeneralError, PositiveInt] = refinedValidation(dto.supplierId)
-    (
-      userId,
-      supplierId
-    ).mapN(SupplierSubscription)
-  }
+      def checkDuplicates(productIds: List[UuidStr]): ValidatedNec[GeneralError, List[UuidStr]] = {
+        val duplicatedIds = productIds.diff(productIds.distinct)
+        if (duplicatedIds.isEmpty) productIds.validNec
+        else duplicatedIds.traverse(id => DuplicatedProductInGroup(id.value).invalidNec)
+      }
 
-  def validateOrderItemDto(dto: OrderItemDto): ValidatedNec[GeneralError, CreateOrderItem] = {
-    val id:    ValidatedNec[GeneralError, UuidStr]     = refinedValidation(dto.productId)
-    val count: ValidatedNec[GeneralError, PositiveInt] = refinedValidation(dto.count)
-    (
-      id,
-      count
-    ).mapN(CreateOrderItem)
-  }
+      def tryConvertToNel(productIds: List[UuidStr]): ValidatedNec[GeneralError, NonEmptyList[UuidStr]] = {
+        productIds.toNel.toValidNec(EmptyGroup)
+      }
 
-  def validateCreateOrderDto(dto: CreateOrderDto): ValidatedNec[GeneralError, CreateOrder] = {
-    val id:         ValidatedNec[GeneralError, UuidStr]               = refinedValidation(dto.userId)
-    val orderItems: ValidatedNec[GeneralError, List[CreateOrderItem]] = dto.orderItems.traverse(validateOrderItemDto)
-    val address:    ValidatedNec[GeneralError, NonEmptyStr]           = refinedValidation(dto.address)
-    (
-      id,
-      orderItems,
-      0f.validNec,
-      address
-    ).mapN(CreateOrder)
-  }
+      def validateProductIds: ValidatedNec[GeneralError, NonEmptyList[UuidStr]] = {
+        val productIds: ValidatedNec[GeneralError, List[UuidStr]] = dto.productIds.traverse(id => refinedValidation(id))
+        productIds.andThen(checkDuplicates).andThen(tryConvertToNel)
+      }
 
-  def orderItemDomainToDto(domain: ReadOrderItem): OrderItemDto = {
-    OrderItemDto(domain.productId.value, domain.count.value)
-  }
+      (
+        validateId,
+        validateProductIds
+      ).mapN(GroupWithProductsDomain)
 
-  def readOrderDomainToDto(domain: ReadOrder): ReadOrderDto = {
-    val orderItems = domain.orderItems.map(orderItemDomainToDto)
-    ReadOrderDto(
-      domain.id.value,
-      domain.userId.value,
-      orderItems,
-      domain.orderStatus,
-      domain.orderedStartDate.value,
-      domain.total.value,
-      domain.address.value
-    )
-  }
+    }
 
-  def updateOrderDomainToDto(domain: UpdateOrder): UpdateOrderDto = {
-    UpdateOrderDto(domain.id.value, domain.orderStatus)
-  }
+    def validateUpdateOrderDto(dto: OrderUpdateDto): ValidatedNec[GeneralError, OrderUpdateDomain] = {
+      val id: ValidatedNec[GeneralError, UuidStr] = refinedValidation(dto.id)
+      (
+        id,
+        dto.orderStatus.validNec
+      ).mapN(OrderUpdateDomain)
+    }
 
-  def validateUpdateOrderDto(dto: UpdateOrderDto): ValidatedNec[GeneralError, UpdateOrder] = {
-    val id: ValidatedNec[GeneralError, UuidStr] = refinedValidation(dto.id)
-    (
-      id,
-      dto.orderStatus.validNec
-    ).mapN(UpdateOrder)
-  }
+    def validateCreateProductDto(productDto: ProductCreateDto): ValidatedNec[GeneralError, ProductCreateDomain] = {
+      val price: ValidatedNec[GeneralError, NonNegativeFloat] =
+        refinedValidation(productDto.price)
+      val name:     ValidatedNec[GeneralError, NonEmptyStr] = refinedValidation(productDto.name)
+      val supplier: ValidatedNec[GeneralError, PositiveInt] = refinedValidation(productDto.supplierId)
+      (
+        name,
+        productDto.category.validNec,
+        supplier,
+        price,
+        productDto.description.traverse(_.validNec)
+      ).mapN(ProductCreateDomain)
+    }
 
-  def readAuthorizedUserDomainToDto(user: ReadAuthorizedUser): ReadAuthorizedUserDto = {
-    ReadAuthorizedUserDto(
-      user.id.value,
-      user.name.value,
-      user.surname.value,
-      user.role,
-      user.phone.value,
-      user.email.value
-    )
-  }
+    def validateUpdateProductDto(dto: ProductUpdateDto): ValidatedNec[GeneralError, ProductUpdateDomain] = {
+      val id:         ValidatedNec[GeneralError, UuidStr]          = refinedValidation(dto.id)
+      val name:       ValidatedNec[GeneralError, NonEmptyStr]      = refinedValidation(dto.name)
+      val supplierId: ValidatedNec[GeneralError, PositiveInt]      = refinedValidation(dto.supplierId)
+      val price:      ValidatedNec[GeneralError, NonNegativeFloat] = refinedValidation(dto.price)
+      (
+        id,
+        name,
+        dto.category.validNec,
+        supplierId,
+        price,
+        dto.description.validNec,
+        dto.status.validNec
+      ).mapN(ProductUpdateDomain)
+    }
 
-  def readDeliveryDomainToDto(domain: ReadDelivery): ReadDeliveryDto = {
-    ReadDeliveryDto(
-      domain.id.value,
-      domain.orderId.value,
-      readAuthorizedUserDomainToDto(domain.courier),
-      domain.deliveryStartDate.value,
-      domain.deliveryFinishDate.map(_.value)
-    )
-  }
+    def validateAttachmentDto(dto: AttachmentCreateDto): ValidatedNec[GeneralError, AttachmentCreateDomain] = {
+      val attachment: ValidatedNec[GeneralError, UrlStr]  = refinedValidation(dto.attachment)
+      val productId:  ValidatedNec[GeneralError, UuidStr] = refinedValidation(dto.productId)
+      (
+        attachment,
+        productId
+      ).mapN(AttachmentCreateDomain)
+    }
 
-  def validateCreateDeliveryDto(dto: CreateDeliveryDto): ValidatedNec[GeneralError, CreateDelivery] = {
-    val courierId: ValidatedNec[GeneralError, UuidStr] = refinedValidation(dto.courierId)
-    val orderId:   ValidatedNec[GeneralError, UuidStr] = refinedValidation(dto.orderId)
-    (
-      courierId,
-      orderId
-    ).mapN(CreateDelivery)
+    def validateCriteriaDto(dto: CriteriaDto): ValidatedNec[GeneralError, CriteriaDomain] = {
+      val startDate: ValidatedNec[GeneralError, Option[DateStr]] = dto.startDate.traverse(p => refinedValidation(p))
+      val endDate:   ValidatedNec[GeneralError, Option[DateStr]] = dto.endDate.traverse(p => refinedValidation(p))
+      (
+        dto.name.traverse(_.validNec),
+        dto.categoryName.traverse(_.validNec),
+        dto.description.traverse(_.validNec),
+        dto.supplierName.traverse(_.validNec),
+        dto.status.validNec,
+        startDate,
+        endDate
+      ).mapN(CriteriaDomain)
+    }
+
+    def validateSupplierDto(dto: SupplierDto): ValidatedNec[GeneralError, SupplierDomain] = {
+      val name:    ValidatedNec[GeneralError, NonEmptyStr] = refinedValidation(dto.name)
+      val address: ValidatedNec[GeneralError, NonEmptyStr] = refinedValidation(dto.address)
+      val id:      ValidatedNec[GeneralError, PositiveInt] = refinedValidation(dto.id)
+      (
+        id,
+        name,
+        address
+      ).mapN(SupplierDomain)
+    }
+
+    def validateCategorySubscriptionDto(
+      dto: CategorySubscriptionDto
+    ): ValidatedNec[GeneralError, CategorySubscriptionDomain] = {
+      val userId: ValidatedNec[GeneralError, UuidStr] = refinedValidation(dto.userId)
+      (
+        userId,
+        dto.category.validNec
+      ).mapN(CategorySubscriptionDomain)
+    }
+
+    def validateSupplierSubscriptionDto(
+      dto: SupplierSubscriptionDto
+    ): ValidatedNec[GeneralError, SupplierSubscriptionDomain] = {
+      val userId:     ValidatedNec[GeneralError, UuidStr]     = refinedValidation(dto.userId)
+      val supplierId: ValidatedNec[GeneralError, PositiveInt] = refinedValidation(dto.supplierId)
+      (
+        userId,
+        supplierId
+      ).mapN(SupplierSubscriptionDomain)
+    }
+
+    def validateOrderItemDto(dto: OrderProductDto): ValidatedNec[GeneralError, OrderProductCreateDomain] = {
+      val id:    ValidatedNec[GeneralError, UuidStr]     = refinedValidation(dto.productId)
+      val count: ValidatedNec[GeneralError, PositiveInt] = refinedValidation(dto.count)
+      (
+        id,
+        count
+      ).mapN(OrderProductCreateDomain)
+    }
+
+    def validateCreateOrderDto(dto: OrderCreateDto): ValidatedNec[GeneralError, OrderCreateDomain] = {
+
+      def validateAddress: ValidatedNec[GeneralError, NonEmptyStr] = refinedValidation(dto.address)
+
+      def checkDuplicates(productIds: List[UuidStr]): ValidatedNec[GeneralError, List[UuidStr]] = {
+        val duplicatedIds = productIds.diff(productIds.distinct)
+        if (duplicatedIds.isEmpty) productIds.validNec
+        else duplicatedIds.traverse(id => DuplicatedProductInGroup(id.value).invalidNec)
+      }
+
+      def tryConvertToNel(productIds: List[UuidStr]): ValidatedNec[GeneralError, NonEmptyList[UuidStr]] = {
+        productIds.toNel.toValidNec(EmptyGroup)
+      }
+
+      def validateOrderProducts: ValidatedNec[GeneralError, NonEmptyList[OrderProductCreateDomain]] = {
+        val orderProducts: ValidatedNec[GeneralError, List[OrderProductCreateDomain]] =
+          dto.orderItems.traverse(validateOrderItemDto)
+        orderProducts.andThen(checkDuplicates).andThen(tryConvertToNel)
+      }
+
+      (
+        validateOrderProducts,
+        validateAddress
+      ).mapN(OrderCreateDomain)
+    }
+
+    def validateUpdateOrderDto(dto: OrderUpdateDto): ValidatedNec[GeneralError, OrderUpdateDomain] = {
+      val id: ValidatedNec[GeneralError, UuidStr] = refinedValidation(dto.id)
+      (
+        id,
+        dto.orderStatus.validNec
+      ).mapN(OrderUpdateDomain)
+    }
   }
 
   object DbModelMapper {
 
     def joinProductsWithAttachments(
-      products:    List[DbReadProduct],
-      attachments: List[ReadAttachment]
-    ): List[ReadProduct] = {
+      products:    List[ProductReadDbDomain],
+      attachments: List[AttachmentReadDomain]
+    ): List[ProductReadDomain] = {
       products.map(product =>
-        ReadProduct(
+        ProductReadDomain(
           product.id,
           product.name,
           product.category,
@@ -266,9 +363,12 @@ object ModelMapper {
       )
     }
 
-    def joinOrdersWithProducts(orders: List[DbReadOrder], orderProducts: List[ReadOrderItem]): List[ReadOrder] = {
+    def joinOrdersWithProducts(
+      orders:        List[OrderReadDbDomain],
+      orderProducts: List[OrderProductReadDomain]
+    ): List[OrderReadDomain] = {
       orders.map(order =>
-        ReadOrder(
+        OrderReadDomain(
           order.id,
           order.userId,
           orderProducts.filter(_.orderId == order.id),
@@ -276,6 +376,21 @@ object ModelMapper {
           order.orderedStartDate,
           order.total,
           order.address
+        )
+      )
+    }
+
+    def joinGroupsWithUsersAndProducts(
+      groups:   List[GroupReadDbDomain],
+      users:    List[GroupUserDomain],
+      products: List[GroupProductDomain]
+    ): List[GroupReadDomain] = {
+      groups.map(group =>
+        GroupReadDomain(
+          group.id,
+          group.name,
+          users.filter(_.groupId == group.id).map(_.userId),
+          products.filter(_.groupId == group.id).map(_.productId)
         )
       )
     }

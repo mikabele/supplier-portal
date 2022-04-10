@@ -5,13 +5,11 @@ import types._
 
 object subscription {
 
-  final case class SupplierSubscription(
-    userId:     UuidStr,
+  final case class SupplierSubscriptionDomain(
     supplierId: PositiveInt
   )
 
-  final case class CategorySubscription(
-    userId:   UuidStr,
+  final case class CategorySubscriptionDomain(
     category: Category
   )
 }

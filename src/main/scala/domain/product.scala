@@ -1,6 +1,6 @@
 package domain
 
-import domain.attachment.ReadAttachment
+import domain.attachment.AttachmentReadDomain
 import domain.category._
 import domain.supplier._
 import doobie.postgres.implicits._
@@ -12,7 +12,7 @@ import types._
 
 object product {
 
-  final case class CreateProduct(
+  final case class ProductCreateDomain(
     name:        NonEmptyStr,
     category:    Category,
     supplierId:  PositiveInt,
@@ -20,30 +20,30 @@ object product {
     description: Option[String]
   )
 
-  final case class ReadProduct(
+  final case class ProductReadDomain(
     id:                UuidStr,
     name:              NonEmptyStr,
     category:          Category,
-    supplier:          Supplier,
+    supplier:          SupplierDomain,
     price:             NonNegativeFloat,
     description:       String,
     status:            ProductStatus,
     publicationPeriod: DateStr,
-    attachments:       List[ReadAttachment]
+    attachments:       List[AttachmentReadDomain]
   )
 
-  final case class DbReadProduct(
+  final case class ProductReadDbDomain(
     id:                UuidStr,
     name:              NonEmptyStr,
     category:          Category,
-    supplier:          Supplier,
+    supplier:          SupplierDomain,
     price:             NonNegativeFloat,
     description:       String,
     status:            ProductStatus,
     publicationPeriod: DateStr
   )
 
-  final case class UpdateProduct(
+  final case class ProductUpdateDomain(
     id:          UuidStr,
     name:        NonEmptyStr,
     category:    Category,

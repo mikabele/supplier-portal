@@ -9,7 +9,6 @@ import org.http4s.circe.CirceEntityCodec.{circeEntityDecoder, circeEntityEncoder
 import org.http4s.dsl.Http4sDsl
 import service.SubscriptionService
 import util.ResponseHandlingUtil.marshalResponse
-import controller.implicits._
 
 object SubscriptionController {
   def routes[F[_]: Concurrent](subscriptionService: SubscriptionService[F]): HttpRoutes[F] = {
@@ -17,40 +16,44 @@ object SubscriptionController {
     import dsl._
 
     def subscribeSupplier(): HttpRoutes[F] = HttpRoutes.of[F] {
-      case req @ POST -> Root / "api" / "subscription" / "supplier" =>
+      case req @ POST -> Root / "api" / "subscription" / "supplier" / UUIDVar(userId) //temp
+          =>
         val res = for {
           supplier <- req.as[SupplierSubscriptionDto]
-          result   <- subscriptionService.subscribeSupplier(supplier)
+          result   <- subscriptionService.subscribeSupplier(userId, supplier)
         } yield result
 
         marshalResponse(res)
     }
 
     def subscribeCategory(): HttpRoutes[F] = HttpRoutes.of[F] {
-      case req @ POST -> Root / "api" / "subscription" / "category" =>
+      case req @ POST -> Root / "api" / "subscription" / "category" / UUIDVar(userId) //temp
+          =>
         val res = for {
           category <- req.as[CategorySubscriptionDto]
-          result   <- subscriptionService.subscribeCategory(category)
+          result   <- subscriptionService.subscribeCategory(userId, category)
         } yield result
 
         marshalResponse(res)
     }
 
     def removeSupplierSubscription(): HttpRoutes[F] = HttpRoutes.of[F] {
-      case req @ DELETE -> Root / "api" / "subscription" / "supplier" =>
+      case req @ DELETE -> Root / "api" / "subscription" / "supplier" / UUIDVar(userId) //temp
+          =>
         val res = for {
           supplier <- req.as[SupplierSubscriptionDto]
-          result   <- subscriptionService.removeSupplierSubscription(supplier)
+          result   <- subscriptionService.removeSupplierSubscription(userId, supplier)
         } yield result
 
         marshalResponse(res)
     }
 
     def removeCategorySubscription(): HttpRoutes[F] = HttpRoutes.of[F] {
-      case req @ DELETE -> Root / "api" / "subscription" / "category" =>
+      case req @ DELETE -> Root / "api" / "subscription" / "category" / UUIDVar(userId) //temp
+          =>
         val res = for {
           category <- req.as[CategorySubscriptionDto]
-          result   <- subscriptionService.removeCategorySubscription(category)
+          result   <- subscriptionService.removeCategorySubscription(userId, category)
         } yield result
 
         marshalResponse(res)
@@ -58,17 +61,17 @@ object SubscriptionController {
 
     def viewSupplierSubscription(): HttpRoutes[F] = HttpRoutes.of[F] {
       case GET -> Root / "api" / "subscription" / "supplier" / UUIDVar(
-            id
+            userId
           ) => // temp field id while i didn't realize authorization
         for {
-          result <- Ok(subscriptionService.getSupplierSubscriptions(id))
+          result <- Ok(subscriptionService.getSupplierSubscriptions(userId))
         } yield result
     }
 
     def viewCategorySubscription(): HttpRoutes[F] = HttpRoutes.of[F] {
-      case GET -> Root / "api" / "subscription" / "category" / UUIDVar(id) =>
+      case GET -> Root / "api" / "subscription" / "category" / UUIDVar(userId) =>
         for {
-          result <- Ok(subscriptionService.getCategorySubscriptions(id))
+          result <- Ok(subscriptionService.getCategorySubscriptions(userId))
         } yield result
     }
 

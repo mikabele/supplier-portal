@@ -1,16 +1,14 @@
 package dto
 
-import dto.order.ReadOrderDto
 import dto.user.ReadAuthorizedUserDto
 
 object delivery {
 
-  final case class CreateDeliveryDto(
-    courierId: String,
-    orderId:   String
+  final case class DeliveryCreateDto(
+    orderId: String
   )
 
-  final case class ReadDeliveryDto(
+  final case class DeliveryReadDto(
     id:                 String,
     order:              String,
     courier:            ReadAuthorizedUserDto,

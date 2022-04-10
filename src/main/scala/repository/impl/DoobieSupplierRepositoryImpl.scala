@@ -1,7 +1,7 @@
 package repository.impl
 
 import cats.effect.Sync
-import domain.supplier.Supplier
+import domain.supplier.SupplierDomain
 import doobie.implicits._
 import doobie.util.transactor.Transactor
 import repository.SupplierRepository
@@ -13,7 +13,7 @@ class DoobieSupplierRepositoryImpl[F[_]: Sync](tx: Transactor[F]) extends Suppli
 
   private val selectSupplierQuery = fr"SELECT id,name,address FROM supplier"
 
-  override def getById(id: PositiveInt): F[Option[Supplier]] = {
-    (selectSupplierQuery ++ fr" WHERE id = $id").query[Supplier].option.transact(tx)
+  override def getById(id: PositiveInt): F[Option[SupplierDomain]] = {
+    (selectSupplierQuery ++ fr" WHERE id = $id").query[SupplierDomain].option.transact(tx)
   }
 }

@@ -1,23 +1,23 @@
 package service
 
 import cats.effect.kernel.Sync
-import dto.attachment.CreateAttachmentDto
+import dto.attachment.AttachmentCreateDto
 import dto.criteria.CriteriaDto
-import dto.product.{CreateProductDto, ReadProductDto, UpdateProductDto}
+import dto.product.{ProductCreateDto, ProductReadDto, ProductUpdateDto}
 import repository.{ProductRepository, SupplierRepository}
-import service.error.general.ErrorsOr
 import service.impl.ProductServiceImpl
+import util.ConvertToErrorsUtil.ErrorsOr
 
 import java.util.UUID
 
 trait ProductService[F[_]] {
-  def addProduct(productDto:    CreateProductDto): F[ErrorsOr[UUID]]
-  def updateProduct(productDto: UpdateProductDto): F[ErrorsOr[UpdateProductDto]]
+  def addProduct(productDto:    ProductCreateDto): F[ErrorsOr[UUID]]
+  def updateProduct(productDto: ProductUpdateDto): F[ErrorsOr[ProductUpdateDto]]
   def deleteProduct(id:         UUID):             F[ErrorsOr[Int]]
-  def readProducts(): F[List[ReadProductDto]]
-  def attach(attachmentDto:         CreateAttachmentDto): F[ErrorsOr[UUID]]
-  def searchByCriteria(criteriaDto: CriteriaDto):         F[ErrorsOr[List[ReadProductDto]]]
-  def removeAttachment(id:          UUID):                F[ErrorsOr[Int]]
+  def readProducts(userId:      UUID):             F[List[ProductReadDto]]
+  def attach(attachmentDto:     AttachmentCreateDto): F[ErrorsOr[UUID]]
+  def searchByCriteria(userId:  UUID, criteriaDto: CriteriaDto): F[ErrorsOr[List[ProductReadDto]]]
+  def removeAttachment(id:      UUID):             F[ErrorsOr[Int]]
 }
 
 object ProductService {

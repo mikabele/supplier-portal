@@ -42,6 +42,7 @@ libraryDependencies ++= Seq(
   "io.circe"                   %% "circe-generic-extras"   % circeVersion,
   "io.circe"                   %% "circe-optics"           % circeVersion,
   "io.circe"                   %% "circe-parser"           % circeVersion,
+  "io.circe"                   %% "circe-refined"          % circeVersion,
   "org.flywaydb"                % "flyway-core"            % "8.5.4",
   "org.slf4j"                   % "slf4j-nop"              % "1.7.36",
   "com.github.julien-truffaut" %% "monocle-core"           % monocleVersion,

@@ -1,18 +1,20 @@
 package repository
 
 import cats.effect.Sync
-import domain.order.{CreateOrder, ReadOrder}
+import domain.order.{OrderCreateDomain, OrderReadDomain}
 import doobie.util.transactor.Transactor
 import repository.impl.DoobieOrderRepositoryImpl
 
 import java.util.UUID
 
 trait OrderRepository[F[_]] {
+  def getById(id: UUID): F[Option[OrderReadDomain]]
+
   def cancelOrder(id: UUID): F[Int]
 
-  def viewActiveOrders(): F[List[ReadOrder]]
+  def viewActiveOrders(userId: UUID): F[List[OrderReadDomain]]
 
-  def createOrder(domain: CreateOrder): F[UUID]
+  def createOrder(userId: UUID, domain: OrderCreateDomain): F[UUID]
 }
 
 object OrderRepository {

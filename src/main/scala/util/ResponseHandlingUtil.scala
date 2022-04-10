@@ -7,8 +7,7 @@ import org.http4s.circe.CirceEntityCodec.circeEntityEncoder
 import org.http4s.dsl.Http4sDsl
 import org.http4s.{EntityEncoder, InvalidMessageBodyFailure, Response}
 import service.error.general._
-import service.error.validation.ValidationError
-import org.http4s.server.middleware.Logger
+import util.ConvertToErrorsUtil.ErrorsOr
 
 object ResponseHandlingUtil {
   def errorsToHttpResponse[F[_]: Concurrent](
@@ -22,7 +21,7 @@ object ResponseHandlingUtil {
       case _: BadRequestError => BadRequest(errorsString)
       case _: NotFoundError   => NotFound(errorsString)
       case _: ForbiddenError  => Forbidden(errorsString)
-      case _: ValidationError => BadRequest(errorsString)
+      //case _: UnauthorizedError => Unauthorized.apply(errorsString)
       case _ => BadRequest(errorsString)
     }
   }

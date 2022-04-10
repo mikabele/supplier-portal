@@ -3,26 +3,25 @@ package repository
 import cats.effect.kernel.Sync
 import domain.category.Category
 import domain.subscription._
-import domain.supplier.Supplier
+import domain.supplier.SupplierDomain
 import doobie.util.transactor.Transactor
 import repository.impl.DoobieSubscriptionRepositoryImpl
 
 import java.util.UUID
 
 trait SubscriptionRepository[F[_]] {
-  def getSupplierSubscriptions(id: UUID): F[List[Supplier]]
+  def getSupplierSubscriptions(id: UUID): F[List[SupplierDomain]]
 
   def getCategorySubscriptions(id: UUID): F[List[Category]]
 
-  def removeSupplierSubscription(supplier: SupplierSubscription): F[Int]
+  def removeSupplierSubscription(userId: UUID, supplier: SupplierSubscriptionDomain): F[Int]
 
-  def removeCategorySubscription(category: CategorySubscription): F[Int]
+  def removeCategorySubscription(userId: UUID, category: CategorySubscriptionDomain): F[Int]
 
-  def subscribeCategory(category: CategorySubscription): F[Int]
-  def subscribeSupplier(supplier: SupplierSubscription): F[Int]
-  // TODO - remove 2 next methods
-  def checkCategorySubscription(category: CategorySubscription): F[Option[Int]]
-  def checkSupplierSubscription(supplier: SupplierSubscription): F[Option[Int]]
+  def subscribeCategory(userId:         UUID, category: CategorySubscriptionDomain): F[Int]
+  def subscribeSupplier(userId:         UUID, supplier: SupplierSubscriptionDomain): F[Int]
+  def checkCategorySubscription(userId: UUID, category: CategorySubscriptionDomain): F[Option[Int]]
+  def checkSupplierSubscription(userId: UUID, supplier: SupplierSubscriptionDomain): F[Option[Int]]
 }
 
 object SubscriptionRepository {

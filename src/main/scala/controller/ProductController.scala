@@ -20,7 +20,7 @@ object ProductController {
 
     def addProduct(): HttpRoutes[F] = HttpRoutes.of[F] { case req @ POST -> Root / "api" / "product" =>
       val res = for {
-        product <- req.as[CreateProductDto]
+        product <- req.as[ProductCreateDto]
         result  <- productService.addProduct(product)
       } yield result
 
@@ -29,7 +29,7 @@ object ProductController {
 
     def updateProduct(): HttpRoutes[F] = HttpRoutes.of[F] { case req @ PUT -> Root / "api" / "product" =>
       val res = for {
-        product <- req.as[UpdateProductDto]
+        product <- req.as[ProductUpdateDto]
         result  <- productService.updateProduct(product)
       } yield result
 
@@ -44,17 +44,19 @@ object ProductController {
       marshalResponse(res)
     }
 
-    def viewProducts(): HttpRoutes[F] = HttpRoutes.of[F] { case GET -> Root / "api" / "product" =>
-      for {
-        products <- productService.readProducts()
-        response <- Ok(products)
-      } yield response
+    def viewProducts(): HttpRoutes[F] = HttpRoutes.of[F] {
+      case GET -> Root / "api" / "product" / UUIDVar(userId) //temp
+          =>
+        for {
+          products <- productService.readProducts(userId)
+          response <- Ok(products)
+        } yield response
     }
 
     def attachToProduct(): HttpRoutes[F] = HttpRoutes.of[F] {
       case req @ POST -> Root / "api" / "product" / "attachment" =>
         val res = for {
-          attachment <- req.as[CreateAttachmentDto]
+          attachment <- req.as[AttachmentCreateDto]
           result     <- productService.attach(attachment)
         } yield result
 
@@ -70,13 +72,15 @@ object ProductController {
         marshalResponse(res)
     }
 
-    def search(): HttpRoutes[F] = HttpRoutes.of[F] { case req @ POST -> Root / "api" / "product" / "search" =>
-      val res = for {
-        criteria <- req.as[CriteriaDto]
-        result   <- productService.searchByCriteria(criteria)
-      } yield result
+    def search(): HttpRoutes[F] = HttpRoutes.of[F] {
+      case req @ POST -> Root / "api" / "product" / "search" / UUIDVar(userId) //temp
+          =>
+        val res = for {
+          criteria <- req.as[CriteriaDto]
+          result   <- productService.searchByCriteria(userId, criteria)
+        } yield result
 
-      marshalResponse(res)
+        marshalResponse(res)
     }
 
     addProduct() <+> updateProduct() <+> deleteProduct <+> viewProducts <+> attachToProduct <+> search <+> removeAttachment()

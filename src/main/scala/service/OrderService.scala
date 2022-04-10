@@ -3,17 +3,17 @@ package service
 import cats.effect.kernel.Sync
 import dto.order._
 import repository.{OrderRepository, ProductRepository}
-import service.error.general.ErrorsOr
 import service.impl.OrderServiceImpl
+import util.ConvertToErrorsUtil.ErrorsOr
 
 import java.util.UUID
 
 trait OrderService[F[_]] {
-  def cancelOrder(id: UUID): F[ErrorsOr[Int]]
+  def cancelOrder(userId: UUID, id: UUID): F[ErrorsOr[Int]]
 
-  def viewActiveOrders(): F[List[ReadOrderDto]]
+  def viewActiveOrders(userId: UUID): F[List[OrderReadDto]]
 
-  def createOrder(createDto: CreateOrderDto): F[ErrorsOr[UUID]]
+  def createOrder(userId: UUID, createDto: OrderCreateDto): F[ErrorsOr[UUID]]
 }
 
 object OrderService {

@@ -1,7 +1,7 @@
 package repository
 
 import cats.effect.kernel.Sync
-import domain.delivery.{CreateDelivery, ReadDelivery}
+import domain.delivery.{DeliveryCreateDomain, DeliveryReadDomain}
 import doobie.util.transactor.Transactor
 import repository.impl.DoobieDeliveryRepositoryImpl
 
@@ -10,9 +10,9 @@ import java.util.UUID
 trait DeliveryRepository[F[_]] {
   def delivered(id: UUID): F[Int]
 
-  def createDelivery(domain: CreateDelivery): F[UUID]
+  def createDelivery(courierId: UUID, domain: DeliveryCreateDomain): F[UUID]
 
-  def showDeliveries(): F[List[ReadDelivery]]
+  def showDeliveries(): F[List[DeliveryReadDomain]]
 }
 
 object DeliveryRepository {

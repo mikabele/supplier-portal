@@ -24,41 +24,41 @@ class DoobieSubscriptionRepositoryImpl[F[_]: Sync](tx: Transactor[F]) extends Su
   private val getSupplierSubQuery =
     fr"SELECT s.id,s.name,s.address FROM supplier AS s INNER JOIN supplier_subscription AS ss ON s.id=ss.supplier_id "
 
-  override def subscribeCategory(category: CategorySubscription): F[Int] = {
-    (subscribeCategoryQuery ++ fr"(${category.category}, ${category.userId}::UUID)").update.run
+  override def subscribeCategory(userId: UUID, category: CategorySubscriptionDomain): F[Int] = {
+    (subscribeCategoryQuery ++ fr"(${category.category}, $userId::UUID)").update.run
       .transact(tx)
   }
 
-  override def subscribeSupplier(supplier: SupplierSubscription): F[Int] =
-    (subscribeSupplierQuery ++ fr"(${supplier.supplierId}, ${supplier.userId}::UUID)").update.run
+  override def subscribeSupplier(userId: UUID, supplier: SupplierSubscriptionDomain): F[Int] =
+    (subscribeSupplierQuery ++ fr"(${supplier.supplierId}, $userId::UUID)").update.run
       .transact(tx)
 
-  override def checkCategorySubscription(category: CategorySubscription): F[Option[Int]] = {
-    (checkSubscriptionQuery ++ fr"category_subscription WHERE user_id=${category.userId}::UUID AND category_id=${category.category})")
+  override def checkCategorySubscription(userId: UUID, category: CategorySubscriptionDomain): F[Option[Int]] = {
+    (checkSubscriptionQuery ++ fr"category_subscription WHERE user_id=$userId::UUID AND category_id=${category.category})")
       .query[Int]
       .option
       .transact(tx)
   }
 
-  override def checkSupplierSubscription(supplier: SupplierSubscription): F[Option[Int]] = {
-    (checkSubscriptionQuery ++ fr"supplier_subscription WHERE user_id=${supplier.userId}::UUID AND supplier_id=${supplier.supplierId})")
+  override def checkSupplierSubscription(userId: UUID, supplier: SupplierSubscriptionDomain): F[Option[Int]] = {
+    (checkSubscriptionQuery ++ fr"supplier_subscription WHERE user_id=$userId::UUID AND supplier_id=${supplier.supplierId})")
       .query[Int]
       .option
       .transact(tx)
   }
 
-  override def removeSupplierSubscription(supplier: SupplierSubscription): F[Int] = {
-    (removeSupplierSubQuery ++ fr"supplier_subscription WHERE user_id=${supplier.userId}::UUID AND supplier_id=${supplier.supplierId})").update.run
+  override def removeSupplierSubscription(userId: UUID, supplier: SupplierSubscriptionDomain): F[Int] = {
+    (removeSupplierSubQuery ++ fr"supplier_subscription WHERE user_id=$userId::UUID AND supplier_id=${supplier.supplierId})").update.run
       .transact(tx)
   }
 
-  override def removeCategorySubscription(category: CategorySubscription): F[Int] = {
-    (removeCategorySubQuery ++ fr"category_subscription WHERE user_id=${category.userId}::UUID AND category_id=${category.category})").update.run
+  override def removeCategorySubscription(userId: UUID, category: CategorySubscriptionDomain): F[Int] = {
+    (removeCategorySubQuery ++ fr"category_subscription WHERE user_id=$userId::UUID AND category_id=${category.category})").update.run
       .transact(tx)
   }
 
-  override def getSupplierSubscriptions(id: UUID): F[List[Supplier]] = {
-    (getSupplierSubQuery ++ fr" WHERE ss.user_id = $id").query[Supplier].to[List].transact(tx)
+  override def getSupplierSubscriptions(id: UUID): F[List[SupplierDomain]] = {
+    (getSupplierSubQuery ++ fr" WHERE ss.user_id = $id").query[SupplierDomain].to[List].transact(tx)
   }
 
   override def getCategorySubscriptions(id: UUID): F[List[Category]] = {

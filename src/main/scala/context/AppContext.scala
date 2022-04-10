@@ -5,9 +5,9 @@ import cats.implicits.toSemigroupKOps
 import org.http4s.HttpApp
 import conf.app._
 import conf.db._
-import controller.{DeliveryController, OrderController, ProductController, SubscriptionController}
-import repository.{DeliveryRepository, OrderRepository, ProductRepository, SubscriptionRepository, SupplierRepository}
-import service.{DeliveryService, OrderService, ProductService, SubscriptionService}
+import controller._
+import repository._
+import service._
 
 object AppContext {
   def setUp[F[_]: Async](conf: AppConf): Resource[F, HttpApp[F]] = {
@@ -17,11 +17,16 @@ object AppContext {
       migrator <- Resource.eval(migrator[F](conf.db))
       _        <- Resource.eval(migrator.migrate())
 
-      supplierRepository = SupplierRepository.of(tx)
+      supplierRepository     = SupplierRepository.of(tx)
+      userRepository         = UserRepository.of(tx)
+      productGroupRepository = ProductGroupRepository.of(tx)
+      productRepository      = ProductRepository.of(tx)
 
-      productRepository = ProductRepository.of(tx)
-      productService    = ProductService.of(productRepository, supplierRepository)
-      productRoutes     = ProductController.routes[F](productService)
+      productGroupService = ProductGroupService.of(productGroupRepository, userRepository, productRepository)
+      productGroupRoutes  = ProductGroupController.routes(productGroupService)
+
+      productService = ProductService.of(productRepository, supplierRepository)
+      productRoutes  = ProductController.routes[F](productService)
 
       subscriptionRepository = SubscriptionRepository.of(tx)
       subscriptionService    = SubscriptionService.of[F](subscriptionRepository, supplierRepository)
@@ -34,6 +39,6 @@ object AppContext {
       deliveryRepository = DeliveryRepository.of(tx)
       deliveryService    = DeliveryService.of(deliveryRepository, orderRepository)
       deliveryRoutes     = DeliveryController.routes(deliveryService)
-    } yield (productRoutes <+> subscriptionRoutes <+> orderRoutes <+> deliveryRoutes).orNotFound
+    } yield (productRoutes <+> subscriptionRoutes <+> orderRoutes <+> deliveryRoutes <+> productGroupRoutes).orNotFound
   }
 }

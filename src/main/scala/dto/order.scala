@@ -3,26 +3,25 @@ package dto
 import domain.order.OrderStatus
 
 object order {
-  final case class CreateOrderDto(
-    userId:     String, // temp field while i don't implement authorization logic
-    orderItems: List[OrderItemDto],
+  final case class OrderCreateDto(
+    orderItems: List[OrderProductDto],
     address:    String
   )
 
-  final case class OrderItemDto(
+  final case class OrderProductDto(
     productId: String,
     count:     Int
   )
 
-  final case class UpdateOrderDto(
+  final case class OrderUpdateDto(
     id:          String,
     orderStatus: OrderStatus
   )
 
-  final case class ReadOrderDto(
+  final case class OrderReadDto(
     id:               String,
     userId:           String,
-    orderItems:       List[OrderItemDto],
+    orderItems:       List[OrderProductDto],
     status:           OrderStatus,
     orderedStartDate: String,
     total:            Float,

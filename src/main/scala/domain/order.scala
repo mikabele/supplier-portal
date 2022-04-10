@@ -1,37 +1,35 @@
 package domain
 
-import domain.product.ProductStatus
 import doobie.postgres.implicits.pgEnumString
-import enumeratum.{CirceEnum, DoobieEnum, Enum, EnumEntry}
 import enumeratum.EnumEntry.Snakecase
+import enumeratum.{CirceEnum, DoobieEnum, Enum, EnumEntry}
 import io.circe.Json
-import types._
 import io.circe.syntax._
+import types._
 
 object order {
-  final case class CreateOrder(
-    userId:     UuidStr,
-    orderItems: List[CreateOrderItem],
+  final case class OrderCreateDomain(
+    orderItems: List[OrderProductCreateDomain],
     total:      Float,
     address:    NonEmptyStr
   )
 
-  final case class UpdateOrder(
+  final case class OrderUpdateDomain(
     id:          UuidStr,
     orderStatus: OrderStatus
   )
 
-  final case class ReadOrder(
+  final case class OrderReadDomain(
     id:               UuidStr,
     userId:           UuidStr,
-    orderItems:       List[ReadOrderItem],
+    orderItems:       List[OrderProductReadDomain],
     orderStatus:      OrderStatus,
     orderedStartDate: DateStr,
     total:            NonNegativeFloat,
     address:          NonEmptyStr
   )
 
-  final case class DbReadOrder(
+  final case class OrderReadDbDomain(
     id:               UuidStr,
     userId:           UuidStr,
     orderStatus:      OrderStatus,
@@ -55,14 +53,13 @@ object order {
       pgEnumString("order_status", OrderStatus.withName, _.entryName)
   }
 
-  // TODO - rename class
-  final case class ReadOrderItem(
+  final case class OrderProductReadDomain(
     orderId:   UuidStr,
     productId: UuidStr,
     count:     PositiveInt
   )
 
-  final case class CreateOrderItem(
+  final case class OrderProductCreateDomain(
     productId: UuidStr,
     count:     PositiveInt
   )

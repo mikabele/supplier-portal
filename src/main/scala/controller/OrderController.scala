@@ -16,28 +16,34 @@ object OrderController {
     implicit val dsl: Http4sDsl[F] = new Http4sDsl[F] {}
     import dsl._
 
-    def createOrder(): HttpRoutes[F] = HttpRoutes.of[F] { case req @ POST -> Root / "api" / "order" =>
-      val res = for {
-        createDto <- req.as[CreateOrderDto]
-        id        <- orderService.createOrder(createDto)
-      } yield id
+    def createOrder(): HttpRoutes[F] = HttpRoutes.of[F] {
+      case req @ POST -> Root / "api" / "order" / UUIDVar(id) //temp
+          =>
+        val res = for {
+          createDto <- req.as[OrderCreateDto]
+          id        <- orderService.createOrder(id, createDto)
+        } yield id
 
-      marshalResponse(res)
+        marshalResponse(res)
     }
 
-    def cancelOrder(): HttpRoutes[F] = HttpRoutes.of[F] { case PUT -> Root / "api" / "order" / UUIDVar(id) =>
-      val res = for {
-        result <- orderService.cancelOrder(id)
-      } yield result
+    def cancelOrder(): HttpRoutes[F] = HttpRoutes.of[F] {
+      case PUT -> Root / "api" / "order" / UUIDVar(userId) //temp
+          / UUIDVar(id) =>
+        val res = for {
+          result <- orderService.cancelOrder(userId, id)
+        } yield result
 
-      marshalResponse(res)
+        marshalResponse(res)
     }
 
-    def viewActiveOrders(): HttpRoutes[F] = HttpRoutes.of[F] { case GET -> Root / "api" / "order" =>
-      for {
-        orders   <- orderService.viewActiveOrders()
-        response <- Ok(orders)
-      } yield response
+    def viewActiveOrders(): HttpRoutes[F] = HttpRoutes.of[F] {
+      case GET -> Root / "api" / "order" / UUIDVar(userId) //temp
+          =>
+        for {
+          orders   <- orderService.viewActiveOrders(userId)
+          response <- Ok(orders)
+        } yield response
     }
 
     createOrder() <+> cancelOrder() <+> viewActiveOrders()
