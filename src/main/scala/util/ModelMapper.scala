@@ -10,7 +10,7 @@ import domain.order._
 import domain.product._
 import domain.subscription.{CategorySubscriptionDomain, SupplierSubscriptionDomain}
 import domain.supplier.SupplierDomain
-import domain.user.ReadAuthorizedUser
+import domain.user.{NonAuthorizedUser, ReadAuthorizedUser}
 import dto.attachment._
 import dto.criteria.CriteriaDto
 import dto.delivery.{DeliveryCreateDto, DeliveryReadDto}
@@ -19,7 +19,7 @@ import dto.order.{OrderCreateDto, OrderProductDto, OrderReadDto, OrderUpdateDto}
 import dto.product._
 import dto.subscription.{CategorySubscriptionDto, SupplierSubscriptionDto}
 import dto.supplier.SupplierDto
-import dto.user.ReadAuthorizedUserDto
+import dto.user.{NonAuthorizedUserDto, ReadAuthorizedUserDto}
 import service.error.general.GeneralError
 import service.error.group.ProductGroupError.{DuplicatedProductInGroup, DuplicatedUserInGroup, EmptyGroup}
 import types._
@@ -134,6 +134,15 @@ object ModelMapper {
   }
 
   object DtoToDomain {
+
+    def validateUserDto(dto: NonAuthorizedUserDto): ValidatedNec[GeneralError, NonAuthorizedUser] = {
+      val login:    ValidatedNec[GeneralError, NonEmptyStr] = refinedValidation(dto.login)
+      val password: ValidatedNec[GeneralError, NonEmptyStr] = refinedValidation(dto.password)
+      (
+        login,
+        password
+      ).mapN(NonAuthorizedUser)
+    }
 
     def validateCreateDeliveryDto(dto: DeliveryCreateDto): ValidatedNec[GeneralError, DeliveryCreateDomain] = {
       val orderId: ValidatedNec[GeneralError, UuidStr] = refinedValidation(dto.orderId)

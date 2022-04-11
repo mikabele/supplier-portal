@@ -22,11 +22,14 @@ object AppContext {
       productGroupRepository = ProductGroupRepository.of(tx)
       productRepository      = ProductRepository.of(tx)
 
+      authenticationService = AuthenticationService.of(userRepository)
+      authenticationRoutes  = AuthenticationController.routes(authenticationService)
+
       productGroupService = ProductGroupService.of(productGroupRepository, userRepository, productRepository)
       productGroupRoutes  = ProductGroupController.routes(productGroupService)
 
       productService = ProductService.of(productRepository, supplierRepository)
-      productRoutes  = ProductController.routes[F](productService)
+      productRoutes  = ProductController.routes[F](authenticationService, productService)
 
       subscriptionRepository = SubscriptionRepository.of(tx)
       subscriptionService    = SubscriptionService.of[F](subscriptionRepository, supplierRepository)
@@ -39,6 +42,6 @@ object AppContext {
       deliveryRepository = DeliveryRepository.of(tx)
       deliveryService    = DeliveryService.of(deliveryRepository, orderRepository)
       deliveryRoutes     = DeliveryController.routes(deliveryService)
-    } yield (productRoutes <+> subscriptionRoutes <+> orderRoutes <+> deliveryRoutes <+> productGroupRoutes).orNotFound
+    } yield (productRoutes <+> subscriptionRoutes <+> orderRoutes <+> deliveryRoutes <+> productGroupRoutes <+> authenticationRoutes).orNotFound
   }
 }

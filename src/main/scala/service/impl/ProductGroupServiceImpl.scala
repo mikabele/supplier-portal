@@ -82,7 +82,7 @@ class ProductGroupServiceImpl[F[_]: Monad](
         productGroupRepository.getById(UUID.fromString(domain.id.value)),
         Chain[GeneralError](ProductGroupNotFound(domain.id.toString))
       )
-      users         <- userRepository.getByIds(domain.userIds).toErrorsOr
+      users         <- userRepository.getByIds(domain.userIds.map(_.value)).toErrorsOr
       invalidUserIds = domain.userIds.toList.diff(users.map(_.id))
       _ <- EitherT.cond(
         invalidUserIds.isEmpty,

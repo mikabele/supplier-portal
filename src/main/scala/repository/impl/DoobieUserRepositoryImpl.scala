@@ -22,10 +22,17 @@ class DoobieUserRepositoryImpl[F[_]: Sync](tx: Transactor[F]) extends UserReposi
     selectUsersQuery.query[ReadAuthorizedUser].to[List].transact(tx)
   }
 
-  override def getByIds(userIds: NonEmptyList[UuidStr]): F[List[ReadAuthorizedUser]] = {
-    (selectUsersQuery ++ fr" WHERE " ++ in(fr"id", userIds.map(id => UUID.fromString(id.value))))
+  override def getByIds(userIds: NonEmptyList[String]): F[List[ReadAuthorizedUser]] = {
+    (selectUsersQuery ++ fr" WHERE " ++ in(fr"id", userIds.map(id => UUID.fromString(id))))
       .query[ReadAuthorizedUser]
       .to[List]
+      .transact(tx)
+  }
+
+  override def tryGetUser(userDomain: NonAuthorizedUser): F[Option[ReadAuthorizedUser]] = {
+    (selectUsersQuery ++ fr" WHERE login = ${userDomain.login} AND password = ${userDomain.password}")
+      .query[ReadAuthorizedUser]
+      .option
       .transact(tx)
   }
 }
