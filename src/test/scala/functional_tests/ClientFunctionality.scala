@@ -26,7 +26,7 @@ import java.time.LocalDateTime
 import java.time.format.DateTimeFormatter
 import java.util.UUID
 
-// TODO - add test product, group to avoid unneccessary queries
+// TODO - rewrite tests with authentication
 
 class ClientFunctionality extends AnyFunSpec {
   def clientResource[F[_]: Async]: Resource[F, Client[F]] = {

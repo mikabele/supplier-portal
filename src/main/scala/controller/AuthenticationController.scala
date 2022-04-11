@@ -26,8 +26,9 @@ object AuthenticationController {
 
       res
         .flatMap {
-          case Right(token) => Ok("Logged in!").map(_.addCookie(ResponseCookie("authcookie", token)))
-          case Left(error)  => errorsToHttpResponse(error)
+          case Right(token) =>
+            Ok("Logged in!").map(_.addCookie(ResponseCookie("authcookie", token, maxAge = Some(3600)))) // 1hour
+          case Left(error) => errorsToHttpResponse(error)
         }
         .handleErrorWith {
           case e: InvalidMessageBodyFailure => BadRequest(e.getMessage)
