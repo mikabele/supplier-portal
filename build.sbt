@@ -52,7 +52,8 @@ libraryDependencies ++= Seq(
   "com.beachape"               %% "enumeratum-circe"       % enumeratumVersion,
   "com.beachape"               %% "enumeratum-doobie"      % enumeratumVersion,
   "org.apache.logging.log4j"    % "log4j-api"              % loggerVersion,
-  "org.apache.logging.log4j"    % "log4j-core"             % loggerVersion
+  "org.apache.logging.log4j"    % "log4j-core"             % loggerVersion,
+  "org.reactormonk"            %% "cryptobits"             % "1.3.1"
 )
 
 addCompilerPlugin(
