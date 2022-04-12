@@ -1,6 +1,8 @@
-ThisBuild / version := "0.1.0-SNAPSHOT"
+name := "supplier-portal"
 
-ThisBuild / scalaVersion := "2.13.8"
+version := "0.1"
+
+scalaVersion := "2.13.6"
 
 lazy val root = (project in file("."))
   .settings(
@@ -19,7 +21,7 @@ val loggerVersion      = "2.17.2"
 libraryDependencies ++= Seq(
   "eu.timepit"                 %% "refined"                % refinedVersion,
   "eu.timepit"                 %% "refined-cats"           % refinedVersion,
-  "org.typelevel"              %% "cats-effect"            % "3.3.8",
+  "org.typelevel"              %% "cats-effect"            % "3.3.11",
   "org.tpolecat"               %% "doobie-core"            % doobieVersion,
   "org.tpolecat"               %% "doobie-postgres"        % doobieVersion,
   "org.tpolecat"               %% "doobie-specs2"          % doobieVersion,
@@ -54,8 +56,13 @@ libraryDependencies ++= Seq(
   "org.apache.logging.log4j"    % "log4j-api"              % loggerVersion,
   "org.apache.logging.log4j"    % "log4j-core"             % loggerVersion,
   "org.reactormonk"            %% "cryptobits"             % "1.3.1"
+  //"com.emarsys"                %% "scheduler"              % "0.4.4"
 )
 
 addCompilerPlugin(
   "org.typelevel" %% "kind-projector" % "0.13.2" cross CrossVersion.full
+)
+
+scalacOptions ++= Seq(
+  "-Ymacro-annotations"
 )

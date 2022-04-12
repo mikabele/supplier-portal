@@ -102,6 +102,6 @@ object ProductController {
         Forbidden(InvalidUserRole(user.role, List(Role.Client)))
     }
 
-    addProduct() <+> updateProduct() <+> deleteProduct <+> viewProducts <+> attachToProduct <+> search <+> removeAttachment()
+    addProduct() <+> updateProduct() <+> deleteProduct() <+> viewProducts() <+> attachToProduct() <+> search() <+> removeAttachment()
   }
 }

@@ -55,7 +55,7 @@ object AppContext {
       middleware = AuthMiddleware(authUser, onFailure)
 
       authedRoutes =
-        productAuthedRoutes <+> subscriptionAuthedRoutes <+> orderAuthedRoutes <+> deliveryAuthedRoutes <+> productAuthedRoutes
+        productAuthedRoutes <+> subscriptionAuthedRoutes <+> orderAuthedRoutes <+> deliveryAuthedRoutes <+> productGroupAuthedRoutes
       routes = middleware(authedRoutes)
 
     } yield (authenticationRoutes <+> routes).orNotFound

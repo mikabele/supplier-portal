@@ -268,7 +268,6 @@ object ModelMapper {
         dto.categoryName.traverse(_.validNec),
         dto.description.traverse(_.validNec),
         dto.supplierName.traverse(_.validNec),
-        dto.status.validNec,
         minPrice,
         maxPrice,
         startDate,
