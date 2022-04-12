@@ -3,10 +3,11 @@ package repository.impl
 import cats.effect.Sync
 import cats.syntax.all._
 import domain.delivery._
+import domain.user.ReadAuthorizedUser
 import doobie.Transactor
 import doobie.implicits._
 import doobie.postgres.implicits._
-import doobie.refined.implicits._ // never delete this row
+import doobie.refined.implicits._
 import repository.DeliveryRepository
 import repository.impl.logger.logger._
 
@@ -22,20 +23,20 @@ class DoobieDeliveryRepositoryImpl[F[_]: Sync](tx: Transactor[F]) extends Delive
   private val updateOrderStatusQuery = fr"UPDATE public.order SET status = "
   private val updateDeliveryQuery    = fr"UPDATE delivery "
 
-  override def delivered(courierId: UUID, id: UUID): F[Int] = {
+  override def delivered(courier: ReadAuthorizedUser, id: UUID): F[Int] = {
     val res = for {
       c <-
         (updateDeliveryQuery ++ fr"SET delivery_finish_date = CURRENT_DATE" ++
-          fr" WHERE order_id = $id AND courier_id = $courierId").update.run
+          fr" WHERE order_id = $id AND courier_id = ${courier.id}::UUID").update.run
       count <- (updateOrderStatusQuery ++ fr"'delivered'::order_status" ++ fr" WHERE id = $id AND $c>0").update.run
     } yield count
 
     res.transact(tx)
   }
 
-  override def createDelivery(courierId: UUID, domain: DeliveryCreateDomain): F[UUID] = {
+  override def createDelivery(courier: ReadAuthorizedUser, domain: DeliveryCreateDomain): F[UUID] = {
     val res = for {
-      id <- (createDeliveryQuery ++ fr"(${courierId}::UUID,${domain.orderId}::UUID)").update
+      id <- (createDeliveryQuery ++ fr"(${courier.id}::UUID,${domain.orderId}::UUID)").update
         .withUniqueGeneratedKeys[UUID]("id")
       _ <-
         (updateOrderStatusQuery ++ fr"'assigned'::order_status" ++ fr" WHERE id = ${domain.orderId}::UUID").update.run

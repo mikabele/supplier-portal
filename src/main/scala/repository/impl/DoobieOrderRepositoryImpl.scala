@@ -4,10 +4,11 @@ import cats.data.NonEmptyList
 import cats.effect.Sync
 import cats.syntax.all._
 import domain.order._
+import domain.user.ReadAuthorizedUser
 import doobie.Transactor
 import doobie.implicits._
 import doobie.postgres.implicits._
-import doobie.refined.implicits._ // never delete this row
+import doobie.refined.implicits._
 import doobie.util.fragments._
 import repository.OrderRepository
 import repository.impl.logger.logger._
@@ -30,11 +31,11 @@ class DoobieOrderRepositoryImpl[F[_]: Sync](tx: Transactor[F]) extends OrderRepo
   private val checkActiveOrdersQuery = fr"SELECT COUNT(*) FROM public.order AS o " ++
     fr"INNER JOIN order_to_product AS otp ON o.id=otp.order_id "
 
-  override def viewActiveOrders(userId: UUID): F[List[OrderReadDomain]] = {
+  override def viewActiveOrders(user: ReadAuthorizedUser): F[List[OrderReadDomain]] = {
     for {
       orders <- (selectOrdersQuery
-        ++ fr" WHERE (o.status != 'cancelled'::order_status AND o.user_id=$userId) "
-        ++ courierGetOrdersQuery ++ fr" WHERE id = $userId AND role = 'courier'::user_role)")
+        ++ fr" WHERE (o.status != 'cancelled'::order_status AND o.user_id=${user.id}::UUID) "
+        ++ courierGetOrdersQuery ++ fr" WHERE id = ${user.id}::UUID AND role = 'courier'::user_role)")
         .query[OrderReadDbDomain]
         .to[List]
         .transact(tx)
@@ -55,9 +56,9 @@ class DoobieOrderRepositoryImpl[F[_]: Sync](tx: Transactor[F]) extends OrderRepo
       .getOrElse(List.empty[OrderProductReadDomain].pure[F])
   }
 
-  override def createOrder(userId: UUID, domain: OrderCreateDomain): F[UUID] = {
+  override def createOrder(user: ReadAuthorizedUser, domain: OrderCreateDomain): F[UUID] = {
     val res = for {
-      id <- (insertOrderQuery ++ fr"${userId}::UUID,${domain.total},${domain.address})").update
+      id <- (insertOrderQuery ++ fr"${user.id}::UUID,${domain.total},${domain.address})").update
         .withUniqueGeneratedKeys[UUID]("id")
       _ <-
         (insertOrderItemsQuery ++ fr"$id,unnest(${domain.orderItems.map(_.productId.value)}::UUID[]),unnest(${domain.orderItems

@@ -6,10 +6,12 @@ import cats.effect.Sync
 import domain.attachment._
 import domain.criteria._
 import domain.product._
+import domain.user.{ReadAuthorizedUser, Role}
 import doobie.Transactor
 import doobie.implicits._
 import doobie.postgres.implicits._
-import doobie.refined.implicits._ // never delete this row
+import doobie.refined.implicits._
+import doobie.util.fragment.Fragment
 import doobie.util.fragments._
 import repository.ProductRepository
 import types.UuidStr
@@ -33,9 +35,12 @@ class DoobieProductRepositoryImpl[F[_]: Sync](tx: Transactor[F]) extends Product
 
   private val addAttachmentQuery    = fr"INSERT INTO attachment(attachment,product_id) VALUES ("
   private val removeAttachmentQuery = fr"DELETE FROM attachment "
-  private val findUserInGroupQuery = fr" p.id IN (select gtp.product_id FROM group_to_product AS gtp " ++
-    fr"INNER JOIN public.group AS g ON g.id = gtp.group_id INNER JOIN group_to_user AS gtu ON g.id=gtu.group_id "
-  private val findManagerQuery        = fr"EXISTS (SELECT 1 FROM public.user WHERE role = 'manager'::user_role AND "
+  private val findUserInGroupQuery = fr" p.id IN (SELECT p.id FROM product AS p" ++
+    fr" LEFT JOIN ( SELECT gtp.product_id,g.id " ++
+    fr" FROM group_to_product AS gtp " ++
+    fr"  INNER JOIN public.group AS g ON g.id = gtp.group_id " ++
+    fr" ) AS gtpu ON p.id=gtpu.product_id " ++
+    fr" WHERE gtpu.id IS NULL OR gtpu.id IN (SELECT group_id FROM group_to_user "
   private val deleteGroupProductQuery = fr"DELETE FROM group_to_product "
   private val deleteFromOrderQuery    = fr"DELETE FROM order_to_product "
 
@@ -74,12 +79,20 @@ class DoobieProductRepositoryImpl[F[_]: Sync](tx: Transactor[F]) extends Product
     res.transact(tx)
   }
 
-  override def viewProducts(userId: UUID, statuses: NonEmptyList[ProductStatus]): F[List[ProductReadDomain]] = {
+  override def viewProducts(
+    user:     ReadAuthorizedUser,
+    statuses: NonEmptyList[ProductStatus]
+  ): F[List[ProductReadDomain]] = {
+    val ifNotManager =
+      if (user.role != Role.Manager)
+        fr" WHERE " ++ in(
+          fr"status",
+          statuses
+        ) ++ fr" AND " ++ findUserInGroupQuery ++ fr" WHERE user_id = ${user.id}::UUID))"
+      else
+        Fragment.empty
     for {
-      products <- (getProductsQuery ++ fr" WHERE " ++ findManagerQuery ++ fr"id = $userId) OR (" ++ in(
-        fr"status",
-        statuses
-      ) ++ fr" AND " ++ findUserInGroupQuery ++ fr" WHERE gtu.user_id = $userId))")
+      products <- (getProductsQuery ++ ifNotManager)
         .query[ProductReadDbDomain]
         .to[List]
         .transact(tx)
@@ -105,19 +118,19 @@ class DoobieProductRepositoryImpl[F[_]: Sync](tx: Transactor[F]) extends Product
       .getOrElse(List.empty[AttachmentReadDomain].pure[F])
   }
 
-  override def searchByCriteria(userId: UUID, criteria: CriteriaDomain): F[List[ProductReadDomain]] = {
+  override def searchByCriteria(user: ReadAuthorizedUser, criteria: CriteriaDomain): F[List[ProductReadDomain]] = {
     for {
       products <- (getProductsQuery ++ fr" INNER JOIN category AS c ON c.id=p.category_id " ++ whereAndOpt(
         criteria.name.map(value => fr"p.name LIKE $value"),
         criteria.categoryName.map(value => fr"c.name LIKE $value"),
         criteria.description.map(value => fr"p.description LIKE $value"),
         criteria.supplierName.map(value => fr"s.name LIKE $value"),
-        criteria.status.map(value => fr"p.status = $value"),
         criteria.minPrice.map(value => fr"p.price >= $value"),
         criteria.maxPrice.map(value => fr"p.price <= $value"),
         criteria.startDate.map(value => fr"p.publication_period >= $value::DATE"),
         criteria.endDate.map(value => fr"p.publication_period < $value::DATE")
-      ) ++ fr" AND " ++ findUserInGroupQuery ++ fr" WHERE gtu.user_id = $userId)")
+      ) ++ fr" AND p.status IN ('available'::product_status,'not_available'::product_status) AND "
+        ++ findUserInGroupQuery ++ fr" WHERE user_id = ${user.id}::UUID))")
         .query[ProductReadDbDomain]
         .to[List]
         .transact(tx)

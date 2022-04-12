@@ -2,81 +2,110 @@ package controller
 
 import cats.effect.Concurrent
 import cats.syntax.all._
+import domain.user.{ReadAuthorizedUser, Role}
 import dto.group._
 import io.circe.generic.auto._
-import org.http4s.HttpRoutes
+import org.http4s.AuthedRoutes
 import org.http4s.circe.CirceEntityCodec.{circeEntityDecoder, circeEntityEncoder}
 import org.http4s.dsl.Http4sDsl
 import service.ProductGroupService
+import service.error.user.UserError.InvalidUserRole
 import util.ResponseHandlingUtil.marshalResponse
 
 object ProductGroupController {
-  def routes[F[_]: Concurrent](productGroupService: ProductGroupService[F]): HttpRoutes[F] = {
-    implicit val dsl: Http4sDsl[F] = new Http4sDsl[F] {}
+  def authedRoutes[F[_]: Concurrent](
+    productGroupService: ProductGroupService[F]
+  )(
+    implicit dsl: Http4sDsl[F]
+  ): AuthedRoutes[ReadAuthorizedUser, F] = {
     import dsl._
 
-    def createGroup(): HttpRoutes[F] = HttpRoutes.of[F] { case req @ POST -> Root / "api" / "product_group" =>
-      val res = for {
-        group  <- req.as[GroupCreateDto]
-        result <- productGroupService.createGroup(group)
-      } yield result
+    def createGroup(): AuthedRoutes[ReadAuthorizedUser, F] = AuthedRoutes.of[ReadAuthorizedUser, F] {
+      case req @ POST -> Root / "api" / "product_group" as user if user.role == Role.Manager =>
+        val res = for {
+          group  <- req.req.as[GroupCreateDto]
+          result <- productGroupService.createGroup(group)
+        } yield result
 
-      marshalResponse(res)
+        marshalResponse(res)
+
+      case POST -> Root / "api" / "product_group" as user =>
+        Forbidden(InvalidUserRole(user.role, List(Role.Manager)).message)
     }
 
-    def addProductsToGroup(): HttpRoutes[F] = HttpRoutes.of[F] {
-      case req @ POST -> Root / "api" / "product_group" / "products" =>
+    def addProductsToGroup(): AuthedRoutes[ReadAuthorizedUser, F] = AuthedRoutes.of[ReadAuthorizedUser, F] {
+      case req @ POST -> Root / "api" / "product_group" / "products" as user if user.role == Role.Manager =>
         val res = for {
-          groupWithProducts <- req.as[GroupWithProductsDto]
+          groupWithProducts <- req.req.as[GroupWithProductsDto]
           result            <- productGroupService.addProducts(groupWithProducts)
         } yield result
 
         marshalResponse(res)
+
+      case POST -> Root / "api" / "product_group" / "products" as user =>
+        Forbidden(InvalidUserRole(user.role, List(Role.Manager)).message)
     }
 
-    def addUsersToGroup(): HttpRoutes[F] = HttpRoutes.of[F] {
-      case req @ POST -> Root / "api" / "product_group" / "users" =>
+    def addUsersToGroup(): AuthedRoutes[ReadAuthorizedUser, F] = AuthedRoutes.of[ReadAuthorizedUser, F] {
+      case req @ POST -> Root / "api" / "product_group" / "users" as user if user.role == Role.Manager =>
         val res = for {
-          groupWithUsers <- req.as[GroupWithUsersDto]
+          groupWithUsers <- req.req.as[GroupWithUsersDto]
           result         <- productGroupService.addUsers(groupWithUsers)
         } yield result
 
         marshalResponse(res)
+
+      case POST -> Root / "api" / "product_group" / "users" as user =>
+        Forbidden(InvalidUserRole(user.role, List(Role.Manager)).message)
     }
 
-    def removeProductsFromGroup(): HttpRoutes[F] = HttpRoutes.of[F] {
-      case req @ DELETE -> Root / "api" / "product_group" / "products" =>
+    def removeProductsFromGroup(): AuthedRoutes[ReadAuthorizedUser, F] = AuthedRoutes.of[ReadAuthorizedUser, F] {
+      case req @ DELETE -> Root / "api" / "product_group" / "products" as user if user.role == Role.Manager =>
         val res = for {
-          groupWithProducts <- req.as[GroupWithProductsDto]
+          groupWithProducts <- req.req.as[GroupWithProductsDto]
           result            <- productGroupService.removeProducts(groupWithProducts)
         } yield result
 
         marshalResponse(res)
+
+      case DELETE -> Root / "api" / "product_group" / "products" as user =>
+        Forbidden(InvalidUserRole(user.role, List(Role.Manager)).message)
     }
 
-    def removeUsersFromGroup(): HttpRoutes[F] = HttpRoutes.of[F] {
-      case req @ DELETE -> Root / "api" / "product_group" / "users" =>
+    def removeUsersFromGroup(): AuthedRoutes[ReadAuthorizedUser, F] = AuthedRoutes.of[ReadAuthorizedUser, F] {
+      case req @ DELETE -> Root / "api" / "product_group" / "users" as user if user.role == Role.Manager =>
         val res = for {
-          groupWithUsers <- req.as[GroupWithUsersDto]
+          groupWithUsers <- req.req.as[GroupWithUsersDto]
           result         <- productGroupService.removeUsers(groupWithUsers)
         } yield result
 
         marshalResponse(res)
+
+      case DELETE -> Root / "api" / "product_group" / "users" as user =>
+        Forbidden(InvalidUserRole(user.role, List(Role.Manager)).message)
     }
 
-    def deleteGroup(): HttpRoutes[F] = HttpRoutes.of[F] { case DELETE -> Root / "api" / "product_group" / UUIDVar(id) =>
-      val res = for {
-        result <- productGroupService.deleteGroup(id)
-      } yield result
+    def deleteGroup(): AuthedRoutes[ReadAuthorizedUser, F] = AuthedRoutes.of[ReadAuthorizedUser, F] {
+      case DELETE -> Root / "api" / "product_group" / UUIDVar(id) as user if user.role == Role.Manager =>
+        val res = for {
+          result <- productGroupService.deleteGroup(id)
+        } yield result
 
-      marshalResponse(res)
+        marshalResponse(res)
+
+      case DELETE -> Root / "api" / "product_group" / UUIDVar(_) as user =>
+        Forbidden(InvalidUserRole(user.role, List(Role.Manager)).message)
     }
 
-    def viewGroups(): HttpRoutes[F] = HttpRoutes.of[F] { case GET -> Root / "api" / "product_group" =>
-      for {
-        groups   <- productGroupService.showGroups()
-        response <- Ok(groups)
-      } yield response
+    def viewGroups(): AuthedRoutes[ReadAuthorizedUser, F] = AuthedRoutes.of[ReadAuthorizedUser, F] {
+      case GET -> Root / "api" / "product_group" as user if user.role == Role.Manager =>
+        for {
+          groups   <- productGroupService.showGroups()
+          response <- Ok(groups)
+        } yield response
+
+      case GET -> Root / "api" / "product_group" as user =>
+        Forbidden(InvalidUserRole(user.role, List(Role.Manager)).message)
     }
 
     createGroup() <+> addUsersToGroup() <+> addProductsToGroup() <+> removeUsersFromGroup() <+>

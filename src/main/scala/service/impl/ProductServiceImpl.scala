@@ -4,6 +4,7 @@ import cats.Monad
 import cats.data.{Chain, EitherT, NonEmptyList}
 import cats.syntax.all._
 import domain.product.ProductStatus
+import domain.user.ReadAuthorizedUser
 import dto.attachment._
 import dto.criteria.CriteriaDto
 import dto.product._
@@ -65,9 +66,9 @@ class ProductServiceImpl[F[_]: Monad](
     res.value
   }
 
-  override def readProducts(userId: UUID): F[List[ProductReadDto]] = {
+  override def readProducts(user: ReadAuthorizedUser): F[List[ProductReadDto]] = {
     for {
-      products <- productRep.viewProducts(userId, NonEmptyList.of(ProductStatus.Available, ProductStatus.NotAvailable))
+      products <- productRep.viewProducts(user, NonEmptyList.of(ProductStatus.Available, ProductStatus.NotAvailable))
     } yield products.map(readProductDomainToDto)
 
   }
@@ -90,12 +91,12 @@ class ProductServiceImpl[F[_]: Monad](
   }
 
   override def searchByCriteria(
-    userId:      UUID,
+    user:        ReadAuthorizedUser,
     criteriaDto: CriteriaDto
   ): F[ErrorsOr[List[ProductReadDto]]] = {
     val res = for {
       criteria <- validateCriteriaDto(criteriaDto).toErrorsOr(fromValidatedNec)
-      products <- productRep.searchByCriteria(userId, criteria).toErrorsOr
+      products <- productRep.searchByCriteria(user, criteria).toErrorsOr
     } yield products.map(readProductDomainToDto)
 
     res.value

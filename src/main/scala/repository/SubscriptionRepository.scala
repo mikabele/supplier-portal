@@ -4,24 +4,23 @@ import cats.effect.kernel.Sync
 import domain.category.Category
 import domain.subscription._
 import domain.supplier.SupplierDomain
+import domain.user.ReadAuthorizedUser
 import doobie.util.transactor.Transactor
 import repository.impl.DoobieSubscriptionRepositoryImpl
 
-import java.util.UUID
-
 trait SubscriptionRepository[F[_]] {
-  def getSupplierSubscriptions(id: UUID): F[List[SupplierDomain]]
+  def getSupplierSubscriptions(user: ReadAuthorizedUser): F[List[SupplierDomain]]
 
-  def getCategorySubscriptions(id: UUID): F[List[Category]]
+  def getCategorySubscriptions(user: ReadAuthorizedUser): F[List[Category]]
 
-  def removeSupplierSubscription(userId: UUID, supplier: SupplierSubscriptionDomain): F[Int]
+  def removeSupplierSubscription(user: ReadAuthorizedUser, supplier: SupplierSubscriptionDomain): F[Int]
 
-  def removeCategorySubscription(userId: UUID, category: CategorySubscriptionDomain): F[Int]
+  def removeCategorySubscription(user: ReadAuthorizedUser, category: CategorySubscriptionDomain): F[Int]
 
-  def subscribeCategory(userId:         UUID, category: CategorySubscriptionDomain): F[Int]
-  def subscribeSupplier(userId:         UUID, supplier: SupplierSubscriptionDomain): F[Int]
-  def checkCategorySubscription(userId: UUID, category: CategorySubscriptionDomain): F[Option[Int]]
-  def checkSupplierSubscription(userId: UUID, supplier: SupplierSubscriptionDomain): F[Option[Int]]
+  def subscribeCategory(user:         ReadAuthorizedUser, category: CategorySubscriptionDomain): F[Int]
+  def subscribeSupplier(user:         ReadAuthorizedUser, supplier: SupplierSubscriptionDomain): F[Int]
+  def checkCategorySubscription(user: ReadAuthorizedUser, category: CategorySubscriptionDomain): F[Option[Int]]
+  def checkSupplierSubscription(user: ReadAuthorizedUser, supplier: SupplierSubscriptionDomain): F[Option[Int]]
 }
 
 object SubscriptionRepository {

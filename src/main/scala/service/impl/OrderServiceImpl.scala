@@ -5,6 +5,7 @@ import cats.data.{Chain, EitherT, NonEmptyList}
 import cats.syntax.all._
 import domain.order.OrderStatus
 import domain.product.ProductStatus
+import domain.user.ReadAuthorizedUser
 import dto.order._
 import repository.{OrderRepository, ProductRepository}
 import service.OrderService
@@ -20,17 +21,17 @@ import java.util.UUID
 
 class OrderServiceImpl[F[_]: Monad](orderRepository: OrderRepository[F], productRepository: ProductRepository[F])
   extends OrderService[F] {
-  override def viewActiveOrders(userId: UUID): F[List[OrderReadDto]] = {
+  override def viewActiveOrders(user: ReadAuthorizedUser): F[List[OrderReadDto]] = {
     for {
-      orders <- orderRepository.viewActiveOrders(userId)
+      orders <- orderRepository.viewActiveOrders(user)
     } yield orders.map(readOrderDomainToDto)
   }
 
-  override def createOrder(userId: UUID, createDto: OrderCreateDto): F[ErrorsOr[UUID]] = {
+  override def createOrder(user: ReadAuthorizedUser, createDto: OrderCreateDto): F[ErrorsOr[UUID]] = {
     val res = for {
       domain            <- validateCreateOrderDto(createDto).toErrorsOr(fromValidatedNec)
       givenIds           = domain.orderItems.map(_.productId)
-      availableProducts <- productRepository.viewProducts(userId, NonEmptyList.of(ProductStatus.Available)).toErrorsOr
+      availableProducts <- productRepository.viewProducts(user, NonEmptyList.of(ProductStatus.Available)).toErrorsOr
       availableIds       = availableProducts.map(_.id)
       notAvailableIds    = givenIds.diff(availableIds)
       _ <- EitherT.cond(
@@ -47,16 +48,16 @@ class OrderServiceImpl[F[_]: Monad](orderRepository: OrderRepository[F], product
           product.price.value * item.count.value
         }
         .sum
-      id <- orderRepository.createOrder(userId, domain.copy(total = total)).toErrorsOr
+      id <- orderRepository.createOrder(user, domain.copy(total = total)).toErrorsOr
     } yield id
 
     res.value
   }
 
-  override def cancelOrder(userId: UUID, id: UUID): F[ErrorsOr[Int]] = {
+  override def cancelOrder(user: ReadAuthorizedUser, id: UUID): F[ErrorsOr[Int]] = {
     val res = for {
       curOrder <- EitherT.fromOptionF(
-        orderRepository.viewActiveOrders(userId).map(_.find(_.id.toString == id.toString)),
+        orderRepository.viewActiveOrders(user).map(_.find(_.id.value == id.toString)),
         Chain[GeneralError](OrderNotFound(id.toString))
       )
       _     <- EitherT.fromEither(checkCurrentStatus(curOrder.orderStatus, OrderStatus.Cancelled))

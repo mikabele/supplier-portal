@@ -10,12 +10,13 @@ import org.http4s.{HttpRoutes, InvalidMessageBodyFailure, ResponseCookie}
 import service.AuthenticationService
 import util.ResponseHandlingUtil.errorsToHttpResponse
 
-// TODO - add unique login in sql
-
 object AuthenticationController {
 
-  def routes[F[_]: Concurrent](authenticationService: AuthenticationService[F]): HttpRoutes[F] = {
-    implicit val dsl: Http4sDsl[F] = new Http4sDsl[F] {}
+  def routes[F[_]: Concurrent](
+    authenticationService: AuthenticationService[F]
+  )(
+    implicit dsl: Http4sDsl[F]
+  ): HttpRoutes[F] = {
     import dsl._
 
     def logIn(): HttpRoutes[F] = HttpRoutes.of[F] { case req @ POST -> Root / "api" / "auth" =>

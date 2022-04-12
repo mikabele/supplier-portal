@@ -4,6 +4,7 @@ import cats.Monad
 import cats.data.{Chain, EitherT}
 import cats.syntax.all._
 import domain.category._
+import domain.user.ReadAuthorizedUser
 import dto.subscription._
 import dto.supplier._
 import repository.{SubscriptionRepository, SupplierRepository}
@@ -11,31 +12,29 @@ import service.SubscriptionService
 import service.error.general.GeneralError
 import service.error.subscription.SubscriptionError.{SubscriptionExists, SubscriptionNotExists}
 import service.error.supplier.SupplierError.SupplierNotFound
-import util.ConvertToErrorsUtil.{ErrorsOr, _}
 import util.ConvertToErrorsUtil.instances.{fromF, fromValidatedNec}
+import util.ConvertToErrorsUtil.{ErrorsOr, _}
 import util.ModelMapper.DomainToDto._
 import util.ModelMapper.DtoToDomain._
-
-import java.util.UUID
 
 class SubscriptionServiceImpl[F[_]: Monad](
   subscriptionRepository: SubscriptionRepository[F],
   supplierRepository:     SupplierRepository[F]
 ) extends SubscriptionService[F] {
-  override def subscribeCategory(userId: UUID, categoryDto: CategorySubscriptionDto): F[ErrorsOr[Int]] = {
+  override def subscribeCategory(user: ReadAuthorizedUser, categoryDto: CategorySubscriptionDto): F[ErrorsOr[Int]] = {
     val res = for {
       category <- validateCategorySubscriptionDto(categoryDto).toErrorsOr(fromValidatedNec)
       _ <- EitherT.fromOptionF(
-        subscriptionRepository.checkCategorySubscription(userId, category),
+        subscriptionRepository.checkCategorySubscription(user, category),
         Chain[GeneralError](SubscriptionExists)
       )
-      count <- subscriptionRepository.subscribeCategory(userId, category).toErrorsOr
+      count <- subscriptionRepository.subscribeCategory(user, category).toErrorsOr
     } yield count
 
     res.value
   }
 
-  override def subscribeSupplier(userId: UUID, supplierDto: SupplierSubscriptionDto): F[ErrorsOr[Int]] = {
+  override def subscribeSupplier(user: ReadAuthorizedUser, supplierDto: SupplierSubscriptionDto): F[ErrorsOr[Int]] = {
     val res = for {
       supplierSubscription <- validateSupplierSubscriptionDto(supplierDto).toErrorsOr(fromValidatedNec)
       _ <- EitherT.fromOptionF(
@@ -43,58 +42,64 @@ class SubscriptionServiceImpl[F[_]: Monad](
         Chain[GeneralError](SupplierNotFound(supplierSubscription.supplierId.value))
       )
       _ <- EitherT.fromOptionF(
-        subscriptionRepository.checkSupplierSubscription(userId, supplierSubscription),
+        subscriptionRepository.checkSupplierSubscription(user, supplierSubscription),
         Chain[GeneralError](SubscriptionExists)
       )
-      count <- subscriptionRepository.subscribeSupplier(userId, supplierSubscription).toErrorsOr
+      count <- subscriptionRepository.subscribeSupplier(user, supplierSubscription).toErrorsOr
     } yield count
 
     res.value
   }
 
-  override def removeCategorySubscription(userId: UUID, category: CategorySubscriptionDto): F[ErrorsOr[Int]] = {
+  override def removeCategorySubscription(
+    user:     ReadAuthorizedUser,
+    category: CategorySubscriptionDto
+  ): F[ErrorsOr[Int]] = {
     {
       val res = for {
         category <- validateCategorySubscriptionDto(category).toErrorsOr(fromValidatedNec)
-        sub      <- subscriptionRepository.checkCategorySubscription(userId, category).toErrorsOr
+        sub      <- subscriptionRepository.checkCategorySubscription(user, category).toErrorsOr
         _ <- EitherT.cond(
           sub.isEmpty,
           (),
           Chain[GeneralError](SubscriptionNotExists)
         )
-        count <- subscriptionRepository.removeCategorySubscription(userId, category).toErrorsOr
+        count <- subscriptionRepository.removeCategorySubscription(user, category).toErrorsOr
       } yield count
 
       res.value
     }
   }
 
-  override def removeSupplierSubscription(userId: UUID, supplier: SupplierSubscriptionDto): F[ErrorsOr[Int]] = {
+  override def removeSupplierSubscription(
+    user:     ReadAuthorizedUser,
+    supplier: SupplierSubscriptionDto
+  ): F[ErrorsOr[Int]] = {
     {
       val res = for {
         supplier <- validateSupplierSubscriptionDto(supplier).toErrorsOr(fromValidatedNec)
-        sub      <- subscriptionRepository.checkSupplierSubscription(userId, supplier).toErrorsOr
+        sub      <- subscriptionRepository.checkSupplierSubscription(user, supplier).toErrorsOr
         _ <- EitherT.cond(
           sub.isEmpty,
           (),
           Chain[GeneralError](SubscriptionNotExists)
         )
-        count <- subscriptionRepository.removeSupplierSubscription(userId, supplier).toErrorsOr
+        count <- subscriptionRepository.removeSupplierSubscription(user, supplier).toErrorsOr
       } yield count
 
       res.value
     }
   }
 
-  override def getCategorySubscriptions(userId: UUID): F[List[Category]] = {
+  override def getCategorySubscriptions(user: ReadAuthorizedUser): F[List[Category]] = {
     for {
-      categories <- subscriptionRepository.getCategorySubscriptions(userId)
+      categories <- subscriptionRepository.getCategorySubscriptions(user)
     } yield categories
   }
 
-  override def getSupplierSubscriptions(userId: UUID): F[List[SupplierDto]] = {
+  override def getSupplierSubscriptions(user: ReadAuthorizedUser): F[List[SupplierDto]] = {
     for {
-      suppliers <- subscriptionRepository.getSupplierSubscriptions(userId)
+      suppliers <- subscriptionRepository.getSupplierSubscriptions(user)
     } yield suppliers.map(supplierDomainToDto)
   }
 }

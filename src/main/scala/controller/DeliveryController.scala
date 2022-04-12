@@ -2,45 +2,56 @@ package controller
 
 import cats.effect.Concurrent
 import cats.syntax.all._
+import domain.user.{ReadAuthorizedUser, Role}
 import dto.delivery.DeliveryCreateDto
 import io.circe.generic.auto._
-import org.http4s.HttpRoutes
+import org.http4s.AuthedRoutes
 import org.http4s.circe.CirceEntityCodec.{circeEntityDecoder, circeEntityEncoder}
 import org.http4s.dsl.Http4sDsl
 import service.DeliveryService
+import service.error.user.UserError.InvalidUserRole
 import util.ResponseHandlingUtil.marshalResponse
 
 object DeliveryController {
-  def routes[F[_]: Concurrent](deliveryService: DeliveryService[F]): HttpRoutes[F] = {
-    implicit val dsl: Http4sDsl[F] = new Http4sDsl[F] {}
+  def authedRoutes[F[_]: Concurrent](
+    deliveryService: DeliveryService[F]
+  )(
+    implicit dsl: Http4sDsl[F]
+  ): AuthedRoutes[ReadAuthorizedUser, F] = {
     import dsl._
 
-    def assignDelivery(): HttpRoutes[F] = HttpRoutes.of[F] {
-      case req @ POST -> Root / "api" / "delivery" / UUIDVar(courierId) //temp field
-          =>
+    def assignDelivery(): AuthedRoutes[ReadAuthorizedUser, F] = AuthedRoutes.of[ReadAuthorizedUser, F] {
+      case req @ POST -> Root / "api" / "delivery" as courier if courier.role == Role.Courier =>
         val res = for {
-          createDto <- req.as[DeliveryCreateDto]
-          id        <- deliveryService.createDelivery(courierId, createDto)
+          createDto <- req.req.as[DeliveryCreateDto]
+          id        <- deliveryService.createDelivery(courier, createDto)
         } yield id
 
         marshalResponse(res)
+      case POST -> Root / "api" / "delivery" as courier =>
+        Forbidden(InvalidUserRole(courier.role, List(Role.Courier)).message)
     }
 
-    def delivered(): HttpRoutes[F] = HttpRoutes.of[F] {
-      case PUT -> Root / "api" / "delivery" / UUIDVar(courierId) //temp field
-          / UUIDVar(id) =>
+    def delivered(): AuthedRoutes[ReadAuthorizedUser, F] = AuthedRoutes.of[ReadAuthorizedUser, F] {
+      case PUT -> Root / "api" / "delivery" / UUIDVar(id) as courier if courier.role == Role.Courier =>
         val res = for {
-          result <- deliveryService.delivered(courierId, id)
+          result <- deliveryService.delivered(courier, id)
         } yield result
 
         marshalResponse(res)
+      case PUT -> Root / "api" / "delivery" / UUIDVar(_) as courier =>
+        Forbidden(InvalidUserRole(courier.role, List(Role.Courier)).message)
     }
 
-    def showDeliveries(): HttpRoutes[F] = HttpRoutes.of[F] { case GET -> Root / "api" / "delivery" =>
-      for {
-        deliveries <- deliveryService.showDeliveries()
-        result     <- Ok(deliveries)
-      } yield result
+    def showDeliveries(): AuthedRoutes[ReadAuthorizedUser, F] = AuthedRoutes.of[ReadAuthorizedUser, F] {
+      case GET -> Root / "api" / "delivery" as courier if courier.role == Role.Courier =>
+        for {
+          deliveries <- deliveryService.showDeliveries()
+          result     <- Ok(deliveries)
+        } yield result
+
+      case GET -> Root / "api" / "delivery" as courier =>
+        Forbidden(InvalidUserRole(courier.role, List(Role.Courier)).message)
     }
 
     assignDelivery() <+> delivered() <+> showDeliveries()

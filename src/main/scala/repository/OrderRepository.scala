@@ -2,6 +2,7 @@ package repository
 
 import cats.effect.Sync
 import domain.order.{OrderCreateDomain, OrderReadDomain}
+import domain.user.ReadAuthorizedUser
 import doobie.util.transactor.Transactor
 import repository.impl.DoobieOrderRepositoryImpl
 
@@ -12,9 +13,9 @@ trait OrderRepository[F[_]] {
 
   def cancelOrder(id: UUID): F[Int]
 
-  def viewActiveOrders(userId: UUID): F[List[OrderReadDomain]]
+  def viewActiveOrders(user: ReadAuthorizedUser): F[List[OrderReadDomain]]
 
-  def createOrder(userId: UUID, domain: OrderCreateDomain): F[UUID]
+  def createOrder(user: ReadAuthorizedUser, domain: OrderCreateDomain): F[UUID]
 
   def checkActiveOrderWithProduct(productId: UUID): F[Int]
 }

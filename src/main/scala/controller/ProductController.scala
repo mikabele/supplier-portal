@@ -11,9 +11,8 @@ import org.http4s.AuthedRoutes
 import org.http4s.circe.CirceEntityCodec.{circeEntityDecoder, circeEntityEncoder}
 import org.http4s.dsl.Http4sDsl
 import service.ProductService
+import service.error.user.UserError.InvalidUserRole
 import util.ResponseHandlingUtil.marshalResponse
-
-import java.util.UUID
 
 object ProductController {
 
@@ -32,6 +31,8 @@ object ProductController {
         } yield result
 
         marshalResponse(res)
+
+      case POST -> Root / "api" / "product" as user => Forbidden(InvalidUserRole(user.role, List(Role.Manager)))
     }
 
     def updateProduct(): AuthedRoutes[ReadAuthorizedUser, F] = AuthedRoutes.of[ReadAuthorizedUser, F] {
@@ -42,6 +43,8 @@ object ProductController {
         } yield result
 
         marshalResponse(res)
+
+      case PUT -> Root / "api" / "product" as user => Forbidden(InvalidUserRole(user.role, List(Role.Manager)))
     }
 
     def deleteProduct(): AuthedRoutes[ReadAuthorizedUser, F] = AuthedRoutes.of[ReadAuthorizedUser, F] {
@@ -51,13 +54,17 @@ object ProductController {
         } yield result
 
         marshalResponse(res)
+      case DELETE -> Root / "api" / "product" / UUIDVar(_) as user =>
+        Forbidden(InvalidUserRole(user.role, List(Role.Manager)))
     }
 
     def viewProducts(): AuthedRoutes[ReadAuthorizedUser, F] = AuthedRoutes.of[ReadAuthorizedUser, F] {
       case GET -> Root / "api" / "product" as user if List(Role.Manager, Role.Client).contains(user.role) =>
         for {
-          products <- Ok(productService.readProducts(UUID.fromString(user.id.value)))
+          products <- Ok(productService.readProducts(user))
         } yield products
+      case GET -> Root / "api" / "product" as user =>
+        Forbidden(InvalidUserRole(user.role, List(Role.Manager, Role.Client)))
     }
 
     def attachToProduct(): AuthedRoutes[ReadAuthorizedUser, F] = AuthedRoutes.of[ReadAuthorizedUser, F] {
@@ -68,6 +75,8 @@ object ProductController {
         } yield result
 
         marshalResponse(res)
+      case POST -> Root / "api" / "product" / "attachment" as user =>
+        Forbidden(InvalidUserRole(user.role, List(Role.Manager)))
     }
 
     def removeAttachment(): AuthedRoutes[ReadAuthorizedUser, F] = AuthedRoutes.of[ReadAuthorizedUser, F] {
@@ -77,16 +86,20 @@ object ProductController {
         } yield result
 
         marshalResponse(res)
+      case DELETE -> Root / "api" / "product" / "attachment" / UUIDVar(_) as user =>
+        Forbidden(InvalidUserRole(user.role, List(Role.Manager)))
     }
 
     def search(): AuthedRoutes[ReadAuthorizedUser, F] = AuthedRoutes.of[ReadAuthorizedUser, F] {
       case req @ POST -> Root / "api" / "product" / "search" as user if user.role == Role.Client =>
         val res = for {
           criteria <- req.req.as[CriteriaDto]
-          result   <- productService.searchByCriteria(UUID.fromString(user.id.value), criteria)
+          result   <- productService.searchByCriteria(user, criteria)
         } yield result
 
         marshalResponse(res)
+      case POST -> Root / "api" / "product" / "search" as user =>
+        Forbidden(InvalidUserRole(user.role, List(Role.Client)))
     }
 
     addProduct() <+> updateProduct() <+> deleteProduct <+> viewProducts <+> attachToProduct <+> search <+> removeAttachment()

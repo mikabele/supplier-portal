@@ -2,77 +2,94 @@ package controller
 
 import cats.effect.kernel.Concurrent
 import cats.implicits._
+import domain.user.{ReadAuthorizedUser, Role}
 import dto.subscription.{CategorySubscriptionDto, SupplierSubscriptionDto}
 import io.circe.generic.auto._
-import org.http4s.HttpRoutes
+import org.http4s.AuthedRoutes
 import org.http4s.circe.CirceEntityCodec.{circeEntityDecoder, circeEntityEncoder}
 import org.http4s.dsl.Http4sDsl
 import service.SubscriptionService
+import service.error.user.UserError.InvalidUserRole
 import util.ResponseHandlingUtil.marshalResponse
 
 object SubscriptionController {
-  def routes[F[_]: Concurrent](subscriptionService: SubscriptionService[F]): HttpRoutes[F] = {
-    implicit val dsl: Http4sDsl[F] = new Http4sDsl[F] {}
+  def authedRoutes[F[_]: Concurrent](
+    subscriptionService: SubscriptionService[F]
+  )(
+    implicit dsl: Http4sDsl[F]
+  ): AuthedRoutes[ReadAuthorizedUser, F] = {
     import dsl._
 
-    def subscribeSupplier(): HttpRoutes[F] = HttpRoutes.of[F] {
-      case req @ POST -> Root / "api" / "subscription" / "supplier" / UUIDVar(userId) //temp
-          =>
+    def subscribeSupplier(): AuthedRoutes[ReadAuthorizedUser, F] = AuthedRoutes.of[ReadAuthorizedUser, F] {
+      case req @ POST -> Root / "api" / "subscription" / "supplier" as user if user.role == Role.Client =>
         val res = for {
-          supplier <- req.as[SupplierSubscriptionDto]
-          result   <- subscriptionService.subscribeSupplier(userId, supplier)
+          supplier <- req.req.as[SupplierSubscriptionDto]
+          result   <- subscriptionService.subscribeSupplier(user, supplier)
         } yield result
 
         marshalResponse(res)
+
+      case POST -> Root / "api" / "subscription" / "supplier" as user =>
+        Forbidden(InvalidUserRole(user.role, List(Role.Client)).message)
     }
 
-    def subscribeCategory(): HttpRoutes[F] = HttpRoutes.of[F] {
-      case req @ POST -> Root / "api" / "subscription" / "category" / UUIDVar(userId) //temp
-          =>
+    def subscribeCategory(): AuthedRoutes[ReadAuthorizedUser, F] = AuthedRoutes.of[ReadAuthorizedUser, F] {
+      case req @ POST -> Root / "api" / "subscription" / "category" as user if user.role == Role.Client =>
         val res = for {
-          category <- req.as[CategorySubscriptionDto]
-          result   <- subscriptionService.subscribeCategory(userId, category)
+          category <- req.req.as[CategorySubscriptionDto]
+          result   <- subscriptionService.subscribeCategory(user, category)
         } yield result
 
         marshalResponse(res)
+
+      case req @ POST -> Root / "api" / "subscription" / "category" as user =>
+        Forbidden(InvalidUserRole(user.role, List(Role.Client)).message)
     }
 
-    def removeSupplierSubscription(): HttpRoutes[F] = HttpRoutes.of[F] {
-      case req @ DELETE -> Root / "api" / "subscription" / "supplier" / UUIDVar(userId) //temp
-          =>
+    def removeSupplierSubscription(): AuthedRoutes[ReadAuthorizedUser, F] = AuthedRoutes.of[ReadAuthorizedUser, F] {
+      case req @ DELETE -> Root / "api" / "subscription" / "supplier" as user if user.role == Role.Client =>
         val res = for {
-          supplier <- req.as[SupplierSubscriptionDto]
-          result   <- subscriptionService.removeSupplierSubscription(userId, supplier)
+          supplier <- req.req.as[SupplierSubscriptionDto]
+          result   <- subscriptionService.removeSupplierSubscription(user, supplier)
         } yield result
 
         marshalResponse(res)
+
+      case req @ DELETE -> Root / "api" / "subscription" / "supplier" as user =>
+        Forbidden(InvalidUserRole(user.role, List(Role.Client)).message)
     }
 
-    def removeCategorySubscription(): HttpRoutes[F] = HttpRoutes.of[F] {
-      case req @ DELETE -> Root / "api" / "subscription" / "category" / UUIDVar(userId) //temp
-          =>
+    def removeCategorySubscription(): AuthedRoutes[ReadAuthorizedUser, F] = AuthedRoutes.of[ReadAuthorizedUser, F] {
+      case req @ DELETE -> Root / "api" / "subscription" / "category" as user if user.role == Role.Client =>
         val res = for {
-          category <- req.as[CategorySubscriptionDto]
-          result   <- subscriptionService.removeCategorySubscription(userId, category)
+          category <- req.req.as[CategorySubscriptionDto]
+          result   <- subscriptionService.removeCategorySubscription(user, category)
         } yield result
 
         marshalResponse(res)
+
+      case req @ DELETE -> Root / "api" / "subscription" / "category" as user =>
+        Forbidden(InvalidUserRole(user.role, List(Role.Client)).message)
     }
 
-    def viewSupplierSubscription(): HttpRoutes[F] = HttpRoutes.of[F] {
-      case GET -> Root / "api" / "subscription" / "supplier" / UUIDVar(
-            userId
-          ) => // temp field id while i didn't realize authorization
+    def viewSupplierSubscription(): AuthedRoutes[ReadAuthorizedUser, F] = AuthedRoutes.of[ReadAuthorizedUser, F] {
+      case GET -> Root / "api" / "subscription" / "supplier" as user if user.role == Role.Client =>
         for {
-          result <- Ok(subscriptionService.getSupplierSubscriptions(userId))
+          result <- Ok(subscriptionService.getSupplierSubscriptions(user))
         } yield result
+
+      case GET -> Root / "api" / "subscription" / "supplier" as user =>
+        Forbidden(InvalidUserRole(user.role, List(Role.Client)).message)
     }
 
-    def viewCategorySubscription(): HttpRoutes[F] = HttpRoutes.of[F] {
-      case GET -> Root / "api" / "subscription" / "category" / UUIDVar(userId) =>
+    def viewCategorySubscription(): AuthedRoutes[ReadAuthorizedUser, F] = AuthedRoutes.of[ReadAuthorizedUser, F] {
+      case GET -> Root / "api" / "subscription" / "category" as user if user.role == Role.Client =>
         for {
-          result <- Ok(subscriptionService.getCategorySubscriptions(userId))
+          result <- Ok(subscriptionService.getCategorySubscriptions(user))
         } yield result
+
+      case GET -> Root / "api" / "subscription" / "category" as user =>
+        Forbidden(InvalidUserRole(user.role, List(Role.Client)).message)
     }
 
     subscribeSupplier() <+> subscribeCategory() <+>
