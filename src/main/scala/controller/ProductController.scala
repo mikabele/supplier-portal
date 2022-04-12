@@ -1,107 +1,92 @@
 package controller
 
-import cats.data.EitherT
 import cats.effect.Concurrent
 import cats.syntax.all._
-import domain.user.Role
+import domain.user.{ReadAuthorizedUser, Role}
 import dto.attachment._
 import dto.criteria.CriteriaDto
 import dto.product._
 import io.circe.generic.auto._
-import org.http4s.HttpRoutes
+import org.http4s.AuthedRoutes
 import org.http4s.circe.CirceEntityCodec.{circeEntityDecoder, circeEntityEncoder}
 import org.http4s.dsl.Http4sDsl
-import service.{AuthenticationService, ProductService}
-import util.ConvertToErrorsUtil.ToErrorsOrSyntax
-import util.ConvertToErrorsUtil.instances.fromF
+import service.ProductService
 import util.ResponseHandlingUtil.marshalResponse
 
 import java.util.UUID
 
 object ProductController {
 
-  def routes[F[_]: Concurrent](
-    authenticationService: AuthenticationService[F],
-    productService:        ProductService[F]
-  ): HttpRoutes[F] = {
-    implicit val dsl: Http4sDsl[F] = new Http4sDsl[F] {}
+  def authedRoutes[F[_]: Concurrent](
+    productService: ProductService[F]
+  )(
+    implicit dsl: Http4sDsl[F]
+  ): AuthedRoutes[ReadAuthorizedUser, F] = {
     import dsl._
 
-    def addProduct(): HttpRoutes[F] = HttpRoutes.of[F] { case req @ POST -> Root / "api" / "product" =>
-      val res = for {
-        user    <- EitherT(authenticationService.retrieveUser(req))
-        _       <- EitherT.fromEither(authenticationService.checkRole(user, Role.Manager :: Nil))
-        product <- EitherT.liftF(req.as[ProductCreateDto])
-        result  <- EitherT(productService.addProduct(product))
-      } yield result
-
-      marshalResponse(res.value)
-    }
-
-    def updateProduct(): HttpRoutes[F] = HttpRoutes.of[F] { case req @ PUT -> Root / "api" / "product" =>
-      val res = for {
-        user    <- EitherT(authenticationService.retrieveUser(req))
-        _       <- EitherT.fromEither(authenticationService.checkRole(user, Role.Manager :: Nil))
-        product <- EitherT.liftF(req.as[ProductUpdateDto])
-        result  <- EitherT(productService.updateProduct(product))
-      } yield result
-
-      marshalResponse(res.value)
-    }
-
-    def deleteProduct(): HttpRoutes[F] = HttpRoutes.of[F] {
-      case req @ DELETE -> Root / "api" / "product" / UUIDVar(id) =>
+    def addProduct(): AuthedRoutes[ReadAuthorizedUser, F] = AuthedRoutes.of[ReadAuthorizedUser, F] {
+      case req @ POST -> Root / "api" / "product" as user if user.role == Role.Manager =>
         val res = for {
-          user   <- EitherT(authenticationService.retrieveUser(req))
-          _      <- EitherT.fromEither(authenticationService.checkRole(user, Role.Manager :: Nil))
-          result <- EitherT(productService.deleteProduct(id))
+          product <- req.req.as[ProductCreateDto]
+          result  <- productService.addProduct(product)
         } yield result
 
-        marshalResponse(res.value)
+        marshalResponse(res)
     }
 
-    def viewProducts(): HttpRoutes[F] = HttpRoutes.of[F] { case req @ GET -> Root / "api" / "product" =>
-      val res = for {
-        user     <- EitherT(authenticationService.retrieveUser(req))
-        _        <- EitherT.fromEither(authenticationService.checkRole(user, Role.Manager :: Role.Client :: Nil))
-        products <- productService.readProducts(UUID.fromString(user.id.value)).toErrorsOr
-      } yield products
-
-      marshalResponse(res.value)
-    }
-
-    def attachToProduct(): HttpRoutes[F] = HttpRoutes.of[F] {
-      case req @ POST -> Root / "api" / "product" / "attachment" =>
+    def updateProduct(): AuthedRoutes[ReadAuthorizedUser, F] = AuthedRoutes.of[ReadAuthorizedUser, F] {
+      case req @ PUT -> Root / "api" / "product" as user if user.role == Role.Manager =>
         val res = for {
-          user       <- EitherT(authenticationService.retrieveUser(req))
-          _          <- EitherT.fromEither(authenticationService.checkRole(user, Role.Manager :: Nil))
-          attachment <- EitherT.liftF(req.as[AttachmentCreateDto])
-          result     <- EitherT(productService.attach(attachment))
+          product <- req.req.as[ProductUpdateDto]
+          result  <- productService.updateProduct(product)
         } yield result
 
-        marshalResponse(res.value)
+        marshalResponse(res)
     }
 
-    def removeAttachment(): HttpRoutes[F] = HttpRoutes.of[F] {
-      case req @ DELETE -> Root / "api" / "product" / "attachment" / UUIDVar(id) =>
+    def deleteProduct(): AuthedRoutes[ReadAuthorizedUser, F] = AuthedRoutes.of[ReadAuthorizedUser, F] {
+      case DELETE -> Root / "api" / "product" / UUIDVar(id) as user if user.role == Role.Manager =>
         val res = for {
-          user   <- EitherT(authenticationService.retrieveUser(req))
-          _      <- EitherT.fromEither(authenticationService.checkRole(user, Role.Manager :: Nil))
-          result <- EitherT(productService.removeAttachment(id))
+          result <- productService.deleteProduct(id)
         } yield result
 
-        marshalResponse(res.value)
+        marshalResponse(res)
     }
 
-    def search(): HttpRoutes[F] = HttpRoutes.of[F] { case req @ POST -> Root / "api" / "product" / "search" =>
-      val res = for {
-        user     <- EitherT(authenticationService.retrieveUser(req))
-        _        <- EitherT.fromEither(authenticationService.checkRole(user, Role.Client :: Nil))
-        criteria <- EitherT.liftF(req.as[CriteriaDto])
-        result   <- EitherT(productService.searchByCriteria(UUID.fromString(user.id.value), criteria))
-      } yield result
+    def viewProducts(): AuthedRoutes[ReadAuthorizedUser, F] = AuthedRoutes.of[ReadAuthorizedUser, F] {
+      case GET -> Root / "api" / "product" as user if List(Role.Manager, Role.Client).contains(user.role) =>
+        for {
+          products <- Ok(productService.readProducts(UUID.fromString(user.id.value)))
+        } yield products
+    }
 
-      marshalResponse(res.value)
+    def attachToProduct(): AuthedRoutes[ReadAuthorizedUser, F] = AuthedRoutes.of[ReadAuthorizedUser, F] {
+      case req @ POST -> Root / "api" / "product" / "attachment" as user if user.role == Role.Manager =>
+        val res = for {
+          attachment <- req.req.as[AttachmentCreateDto]
+          result     <- productService.attach(attachment)
+        } yield result
+
+        marshalResponse(res)
+    }
+
+    def removeAttachment(): AuthedRoutes[ReadAuthorizedUser, F] = AuthedRoutes.of[ReadAuthorizedUser, F] {
+      case DELETE -> Root / "api" / "product" / "attachment" / UUIDVar(id) as user if user.role == Role.Manager =>
+        val res = for {
+          result <- productService.removeAttachment(id)
+        } yield result
+
+        marshalResponse(res)
+    }
+
+    def search(): AuthedRoutes[ReadAuthorizedUser, F] = AuthedRoutes.of[ReadAuthorizedUser, F] {
+      case req @ POST -> Root / "api" / "product" / "search" as user if user.role == Role.Client =>
+        val res = for {
+          criteria <- req.req.as[CriteriaDto]
+          result   <- productService.searchByCriteria(UUID.fromString(user.id.value), criteria)
+        } yield result
+
+        marshalResponse(res)
     }
 
     addProduct() <+> updateProduct() <+> deleteProduct <+> viewProducts <+> attachToProduct <+> search <+> removeAttachment()

@@ -9,11 +9,10 @@ import org.http4s.headers.Cookie
 import org.reactormonk.{CryptoBits, PrivateKey}
 import repository.UserRepository
 import service.AuthenticationService
-import service.error.auth.CookieError.CookieValidationFail
 import service.error.general.GeneralError
-import service.error.user.UserError.{InvalidUserOrPassword, InvalidUserRole}
+import service.error.user.UserError.{InvalidUserOrPassword, UserNotFound}
+import util.ConvertToErrorsUtil.instances.fromValidatedNec
 import util.ConvertToErrorsUtil.{ErrorsOr, _}
-import util.ConvertToErrorsUtil.instances.{fromF, fromValidatedNec}
 import util.ModelMapper.DtoToDomain._
 
 import scala.io.Codec
@@ -42,25 +41,19 @@ class AuthenticationServiceImpl[F[_]: Monad](userRepository: UserRepository[F]) 
       cookie <- header.values.toList
         .find(_.name == "authcookie")
         .toRight("Couldn't find the authcookie")
-      _ = println(cookie.content)
       id <- crypto
         .validateSignedToken(cookie.content)
         .toRight("Cookie invalid")
     } yield id
   }
 
-  override def retrieveUser(req: Request[F]): F[ErrorsOr[ReadAuthorizedUser]] = {
+  override def retrieveUser(req: Request[F]): F[Either[String, ReadAuthorizedUser]] = {
     val res = for {
-      token <- EitherT.fromEither(validateCookie(req)).leftMap(ex => Chain[GeneralError](CookieValidationFail(ex)))
-      _      = println(token)
-      users <- userRepository.getByIds(NonEmptyList.of(token)).toErrorsOr
-      user   = users.head
+      token <- EitherT.fromEither(validateCookie(req))
+      users <- EitherT.liftF(userRepository.getByIds(NonEmptyList.of(token)))
+      user  <- EitherT.fromOption(users.headOption, UserNotFound(token).message)
     } yield user
 
     res.value
-  }
-
-  override def checkRole(user: ReadAuthorizedUser, expectedRoles: List[Role]): ErrorsOr[Unit] = {
-    Either.cond(expectedRoles.contains(user.role), (), Chain[GeneralError](InvalidUserRole(user.role, expectedRoles)))
   }
 }

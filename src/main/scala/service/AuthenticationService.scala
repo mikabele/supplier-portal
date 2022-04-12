@@ -14,9 +14,7 @@ import util.ConvertToErrorsUtil.ErrorsOr
 trait AuthenticationService[F[_]] {
   def verifyLogin(nonAuthorizedUserDto: NonAuthorizedUserDto): F[ErrorsOr[String]] // authorization method,send token
 
-  def retrieveUser(req: Request[F]): F[ErrorsOr[ReadAuthorizedUser]] // after authorization
-
-  def checkRole(user: ReadAuthorizedUser, expectedRoles: List[Role]): ErrorsOr[Unit]
+  def retrieveUser(req: Request[F]): F[Either[String, ReadAuthorizedUser]] // after authorization
 }
 
 object AuthenticationService {
