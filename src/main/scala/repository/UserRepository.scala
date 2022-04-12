@@ -12,7 +12,7 @@ trait UserRepository[F[_]] {
 
   def getByIds(userIds: NonEmptyList[String]): F[List[ReadAuthorizedUser]]
 
-  def getUsers(): F[List[ReadAuthorizedUser]]
+  def getUsers(): F[List[ReadAuthorizedUser]] // technical method
 }
 
 object UserRepository {

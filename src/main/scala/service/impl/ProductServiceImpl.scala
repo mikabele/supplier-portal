@@ -3,27 +3,27 @@ package service.impl
 import cats.Monad
 import cats.data.{Chain, EitherT, NonEmptyList}
 import cats.syntax.all._
-import domain.product.{ProductCreateDomain, ProductStatus}
+import domain.product.ProductStatus
 import dto.attachment._
 import dto.criteria.CriteriaDto
 import dto.product._
-import repository.{ProductRepository, SupplierRepository}
+import repository.{OrderRepository, ProductRepository, SupplierRepository}
 import service.ProductService
 import service.error.attachment.AttachmentError.AttachmentNotFound
 import service.error.general.GeneralError
-import service.error.product.ProductError.ProductNotFound
+import service.error.product.ProductError.{DeclineDeleteProduct, ProductNotFound}
 import service.error.supplier.SupplierError.SupplierNotFound
-import util.ConvertToErrorsUtil.ErrorsOr
+import util.ConvertToErrorsUtil.{ErrorsOr, _}
+import util.ConvertToErrorsUtil.instances.{fromF, fromValidatedNec}
 import util.ModelMapper.DomainToDto._
 import util.ModelMapper.DtoToDomain._
-import util.ConvertToErrorsUtil._
-import util.ConvertToErrorsUtil.instances.{fromF, fromValidatedNec}
 
 import java.util.UUID
 
 class ProductServiceImpl[F[_]: Monad](
   productRep:         ProductRepository[F],
-  supplierRepository: SupplierRepository[F]
+  supplierRepository: SupplierRepository[F],
+  orderRepository:    OrderRepository[F]
 ) extends ProductService[F] {
   override def addProduct(productDto: ProductCreateDto): F[ErrorsOr[UUID]] = {
     val res = for {
@@ -56,8 +56,10 @@ class ProductServiceImpl[F[_]: Monad](
 
   override def deleteProduct(id: UUID): F[ErrorsOr[Int]] = {
     val res = for {
-      count  <- productRep.deleteProduct(id).toErrorsOr
-      result <- EitherT.cond(count > 0, count, Chain[GeneralError](ProductNotFound(id.toString)))
+      orderCount <- orderRepository.checkActiveOrderWithProduct(id).toErrorsOr
+      _          <- EitherT.cond(orderCount == 0, (), Chain[GeneralError](DeclineDeleteProduct(orderCount)))
+      count      <- productRep.deleteProduct(id).toErrorsOr
+      result     <- EitherT.cond(count > 0, count, Chain[GeneralError](ProductNotFound(id.toString)))
     } yield result
 
     res.value

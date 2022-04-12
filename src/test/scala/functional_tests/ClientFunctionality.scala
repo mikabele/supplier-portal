@@ -93,11 +93,11 @@ class ClientFunctionality extends AnyFunSpec {
             deleteGroupRequest        = Request[IO](method = DELETE, uri = groupAPIAddress / groupId)
             s3                       <- cl.status(deleteGroupRequest)
             deleteRequest             = Request[IO](method = DELETE, uri = productAPIAddress / id)
-            _                        <- cl.status(deleteRequest)
+            s4                       <- cl.status(deleteRequest)
           } yield {
             assert(actualProducts == expectedProducts)
             assert(actualProductsByCriteria == expectedProducts)
-            assert(s1.isSuccess && s2.isSuccess && s3.isSuccess)
+            assert(s1.isSuccess && s2.isSuccess && s3.isSuccess && s4.isSuccess)
           }
         })
         .unsafeRunSync()
@@ -218,14 +218,19 @@ class ClientFunctionality extends AnyFunSpec {
             createDeliveryBody = DeliveryCreateDto(orderId.toString)
             createDeliveryRequest = Request[IO](method = POST, uri = deliveryAPIAddress / courierUserId)
               .withEntity(createDeliveryBody)
-            _                 <- cl.status(createDeliveryRequest)
+            s3                <- cl.status(createDeliveryRequest)
             cancelOrderRequest = Request[IO](method = PUT, uri = orderAPIAddress / clientUserId / orderId)
             status            <- cl.status(cancelOrderRequest)
+            deliveredRequest   = Request[IO](method = PUT, uri = deliveryAPIAddress / courierUserId / orderId)
+            s6                <- cl.status(deliveredRequest)
             deleteGroupRequest = Request[IO](method = DELETE, uri = groupAPIAddress / groupId)
             s4                <- cl.status(deleteGroupRequest)
             deleteRequest      = Request[IO](method = DELETE, uri = productAPIAddress / id)
             s5                <- cl.status(deleteRequest)
-          } yield assert(status == BadRequest)
+          } yield {
+            assert(s1.isSuccess && s2.isSuccess && s3.isSuccess && s6.isSuccess && s4.isSuccess && s5.isSuccess)
+            assert(status == BadRequest)
+          }
         })
         .unsafeRunSync()
     }
@@ -275,7 +280,7 @@ class ClientFunctionality extends AnyFunSpec {
               ProductStatus.InProcessing
             )
             updateRequest = Request[IO](method = PUT, uri = productAPIAddress).withEntity(updateProductBody)
-            _            <- cl.status(updateRequest)
+            s3           <- cl.status(updateRequest)
             makeOrderBody = OrderCreateDto(List(OrderProductDto(id.toString, 10)), "Minsk")
             makeOrderRequest = Request[IO](method = POST, uri = orderAPIAddress / clientUserId)
               .withEntity(makeOrderBody)
@@ -285,6 +290,7 @@ class ClientFunctionality extends AnyFunSpec {
             deleteRequest      = Request[IO](method = DELETE, uri = productAPIAddress / id)
             s5                <- cl.status(deleteRequest)
           } yield {
+            assert(s1.isSuccess && s2.isSuccess && s3.isSuccess && s4.isSuccess && s5.isSuccess)
             assert(status == BadRequest)
           }
         })
@@ -310,13 +316,14 @@ class ClientFunctionality extends AnyFunSpec {
       client
         .use(cl => {
           for {
-            _  <- cl.status(subscribeCategoryRequest)
-            s1 <- cl.status(subscribeCategoryRequest)
-            _  <- cl.status(subscribeSupplierRequest)
-            s2 <- cl.status(subscribeSupplierRequest)
-            s3 <- cl.status(removeSupplierSubRequest)
-            s4 <- cl.status(removeCategorySubRequest)
+            s11 <- cl.status(subscribeCategoryRequest)
+            s1  <- cl.status(subscribeCategoryRequest)
+            s21 <- cl.status(subscribeSupplierRequest)
+            s2  <- cl.status(subscribeSupplierRequest)
+            s3  <- cl.status(removeSupplierSubRequest)
+            s4  <- cl.status(removeCategorySubRequest)
           } yield {
+            assert(s11.isSuccess && s21.isSuccess && s3.isSuccess && s4.isSuccess)
             assert(s1 == BadRequest && s2 == BadRequest)
           }
         })

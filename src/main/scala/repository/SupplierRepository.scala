@@ -7,7 +7,7 @@ import repository.impl.DoobieSupplierRepositoryImpl
 import types.PositiveInt
 
 trait SupplierRepository[F[_]] {
-  def getById(id: PositiveInt): F[Option[SupplierDomain]]
+  def getById(id: PositiveInt): F[Option[SupplierDomain]] //technical method
 }
 
 object SupplierRepository {

@@ -4,7 +4,7 @@ import cats.effect.kernel.Sync
 import dto.attachment.AttachmentCreateDto
 import dto.criteria.CriteriaDto
 import dto.product.{ProductCreateDto, ProductReadDto, ProductUpdateDto}
-import repository.{ProductRepository, SupplierRepository}
+import repository.{OrderRepository, ProductRepository, SupplierRepository}
 import service.impl.ProductServiceImpl
 import util.ConvertToErrorsUtil.ErrorsOr
 
@@ -23,8 +23,9 @@ trait ProductService[F[_]] {
 object ProductService {
   def of[F[_]: Sync](
     productRepository:  ProductRepository[F],
-    supplierRepository: SupplierRepository[F]
+    supplierRepository: SupplierRepository[F],
+    orderRepository:    OrderRepository[F]
   ): ProductService[F] = {
-    new ProductServiceImpl[F](productRepository, supplierRepository)
+    new ProductServiceImpl[F](productRepository, supplierRepository, orderRepository)
   }
 }

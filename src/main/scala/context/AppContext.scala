@@ -1,23 +1,16 @@
 package context
 
-import cats.data.{Kleisli, OptionT}
 import cats.effect.{Async, Resource}
 import cats.implicits.toSemigroupKOps
-import org.http4s.{AuthedRoutes, HttpApp, Request, Response}
+import org.http4s.HttpApp
 import conf.app._
 import conf.db._
 import controller._
-import domain.user.ReadAuthorizedUser
-import org.http4s.dsl.Http4sDsl
-import org.http4s.server.AuthMiddleware
 import repository._
 import service._
 
 object AppContext {
   def setUp[F[_]: Async](conf: AppConf): Resource[F, HttpApp[F]] = {
-    implicit val dsl: Http4sDsl[F] = new Http4sDsl[F] {}
-    import dsl._
-
     for {
       tx <- transactor[F](conf.db)
 
@@ -28,6 +21,7 @@ object AppContext {
       userRepository         = UserRepository.of(tx)
       productGroupRepository = ProductGroupRepository.of(tx)
       productRepository      = ProductRepository.of(tx)
+      orderRepository        = OrderRepository.of(tx)
 
       authenticationService = AuthenticationService.of(userRepository)
       authenticationRoutes  = AuthenticationController.routes(authenticationService)
@@ -42,9 +36,8 @@ object AppContext {
       subscriptionService    = SubscriptionService.of[F](subscriptionRepository, supplierRepository)
       subscriptionRoutes     = SubscriptionController.routes[F](subscriptionService)
 
-      orderRepository = OrderRepository.of(tx)
-      orderService    = OrderService.of(orderRepository, productRepository)
-      orderRoutes     = OrderController.routes(orderService)
+      orderService = OrderService.of(orderRepository, productRepository)
+      orderRoutes  = OrderController.routes(orderService)
 
       deliveryRepository = DeliveryRepository.of(tx)
       deliveryService    = DeliveryService.of(deliveryRepository, orderRepository)

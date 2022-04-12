@@ -15,6 +15,8 @@ trait OrderRepository[F[_]] {
   def viewActiveOrders(userId: UUID): F[List[OrderReadDomain]]
 
   def createOrder(userId: UUID, domain: OrderCreateDomain): F[UUID]
+
+  def checkActiveOrderWithProduct(productId: UUID): F[Int]
 }
 
 object OrderRepository {

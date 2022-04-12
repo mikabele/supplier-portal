@@ -27,6 +27,8 @@ class DoobieOrderRepositoryImpl[F[_]: Sync](tx: Transactor[F]) extends OrderRepo
   private val insertOrderQuery      = fr"INSERT INTO public.order(user_id,total,address) VALUES ("
   private val insertOrderItemsQuery = fr"INSERT INTO order_to_product(order_id,product_id,count) SELECT "
   private val courierGetOrdersQuery = fr" OR o.status='ordered'::order_status AND EXISTS (SELECT 1 FROM public.user "
+  private val checkActiveOrdersQuery = fr"SELECT COUNT(*) FROM public.order AS o " ++
+    fr"INNER JOIN order_to_product AS otp ON o.id=otp.order_id "
 
   override def viewActiveOrders(userId: UUID): F[List[OrderReadDomain]] = {
     for {
@@ -89,5 +91,12 @@ class DoobieOrderRepositoryImpl[F[_]: Sync](tx: Transactor[F]) extends OrderRepo
         o.address
       )
     )
+  }
+
+  override def checkActiveOrderWithProduct(productId: UUID): F[Int] = {
+    (checkActiveOrdersQuery ++ fr" WHERE otp.product_id = $productId AND o.status NOT IN ('delivered'::order_status,'cancelled'::order_status)")
+      .query[Int]
+      .unique
+      .transact(tx)
   }
 }
