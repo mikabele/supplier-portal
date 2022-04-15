@@ -193,6 +193,8 @@ log_files/*
 *.class
 *.log
 
+src/main/resources/application.conf
+
 # virtual machine crash logs, see http://www.java.com/en/download/help/error_hotspot.xml
 hs_err_pid*
 
