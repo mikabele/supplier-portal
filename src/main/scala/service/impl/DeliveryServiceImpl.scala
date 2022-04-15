@@ -4,14 +4,14 @@ import cats.Monad
 import cats.data.{Chain, EitherT}
 import cats.syntax.all._
 import domain.order.OrderStatus
-import domain.user.ReadAuthorizedUser
+import domain.user.AuthorizedUserDomain
 import dto.delivery.{DeliveryCreateDto, DeliveryReadDto}
 import repository.{DeliveryRepository, OrderRepository}
 import service.DeliveryService
 import service.error.delivery.DeliveryError.InvalidDeliveryCourier
 import service.error.general.GeneralError
 import service.error.order.OrderError.OrderNotFound
-import util.ConvertToErrorsUtil.{ErrorsOr, _}
+import util.ConvertToErrorsUtil._
 import util.ConvertToErrorsUtil.instances.{fromF, fromValidatedNec}
 import util.ModelMapper.DomainToDto._
 import util.ModelMapper.DtoToDomain._
@@ -27,7 +27,7 @@ class DeliveryServiceImpl[F[_]: Monad](deliveryRepository: DeliveryRepository[F]
     } yield res.map(readDeliveryDomainToDto)
   }
 
-  override def delivered(courier: ReadAuthorizedUser, id: UUID): F[ErrorsOr[Int]] = {
+  override def delivered(courier: AuthorizedUserDomain, id: UUID): F[ErrorsOr[Int]] = {
     val res = for {
       order <- EitherT.fromOptionF(orderRepository.getById(id), Chain[GeneralError](OrderNotFound(id.toString)))
       _     <- EitherT.fromEither(checkCurrentStatus(order.orderStatus, OrderStatus.Delivered))
@@ -38,7 +38,7 @@ class DeliveryServiceImpl[F[_]: Monad](deliveryRepository: DeliveryRepository[F]
     res.value
   }
 
-  override def createDelivery(courier: ReadAuthorizedUser, createDto: DeliveryCreateDto): F[ErrorsOr[UUID]] = {
+  override def createDelivery(courier: AuthorizedUserDomain, createDto: DeliveryCreateDto): F[ErrorsOr[UUID]] = {
     val res = for {
       domain <- validateCreateDeliveryDto(createDto).toErrorsOr(fromValidatedNec)
       order <- EitherT.fromOptionF(

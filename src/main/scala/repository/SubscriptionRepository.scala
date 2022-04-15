@@ -1,26 +1,28 @@
 package repository
 
-import cats.effect.kernel.Sync
+import cats.effect.Sync
 import domain.category.Category
 import domain.subscription._
 import domain.supplier.SupplierDomain
-import domain.user.ReadAuthorizedUser
+import domain.user.AuthorizedUserDomain
 import doobie.util.transactor.Transactor
 import repository.impl.DoobieSubscriptionRepositoryImpl
 
 trait SubscriptionRepository[F[_]] {
-  def getSupplierSubscriptions(user: ReadAuthorizedUser): F[List[SupplierDomain]]
+  def updateLastNotificationDate(): F[Int]
 
-  def getCategorySubscriptions(user: ReadAuthorizedUser): F[List[Category]]
+  def getSupplierSubscriptions(user: AuthorizedUserDomain): F[List[SupplierDomain]]
 
-  def removeSupplierSubscription(user: ReadAuthorizedUser, supplier: SupplierSubscriptionDomain): F[Int]
+  def getCategorySubscriptions(user: AuthorizedUserDomain): F[List[Category]]
 
-  def removeCategorySubscription(user: ReadAuthorizedUser, category: CategorySubscriptionDomain): F[Int]
+  def removeSupplierSubscription(user: AuthorizedUserDomain, supplier: SupplierSubscriptionDomain): F[Int]
 
-  def subscribeCategory(user:         ReadAuthorizedUser, category: CategorySubscriptionDomain): F[Int]
-  def subscribeSupplier(user:         ReadAuthorizedUser, supplier: SupplierSubscriptionDomain): F[Int]
-  def checkCategorySubscription(user: ReadAuthorizedUser, category: CategorySubscriptionDomain): F[Option[Int]]
-  def checkSupplierSubscription(user: ReadAuthorizedUser, supplier: SupplierSubscriptionDomain): F[Option[Int]]
+  def removeCategorySubscription(user: AuthorizedUserDomain, category: CategorySubscriptionDomain): F[Int]
+
+  def subscribeCategory(user:         AuthorizedUserDomain, category: CategorySubscriptionDomain): F[Int]
+  def subscribeSupplier(user:         AuthorizedUserDomain, supplier: SupplierSubscriptionDomain): F[Int]
+  def checkCategorySubscription(user: AuthorizedUserDomain, category: CategorySubscriptionDomain): F[Option[Int]]
+  def checkSupplierSubscription(user: AuthorizedUserDomain, supplier: SupplierSubscriptionDomain): F[Option[Int]]
 }
 
 object SubscriptionRepository {

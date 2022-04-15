@@ -27,18 +27,19 @@ CREATE TABLE product
     supplier_id INT NOT NULL,
     price FLOAT NOT NULL,
     description VARCHAR(256),
-    publication_period DATE DEFAULT CURRENT_DATE,
+    publication_date TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
     status PRODUCT_STATUS DEFAULT('available'),
     PRIMARY KEY(id),
     CONSTRAINT category_fk FOREIGN KEY (category_id) REFERENCES category(id),
-    CONSTRAINT supplier_fk FOREIGN KEY (supplier_id) REFERENCES supplier(id)
+    CONSTRAINT supplier_fk FOREIGN KEY (supplier_id) REFERENCES supplier(id),
+    CONSTRAINT unique_name UNIQUE (name,supplier_id)
 );
 
 DROP TABLE IF EXISTS attachment CASCADE;
 CREATE TABLE attachment
 (
   id UUID DEFAULT gen_random_uuid(),
-  attachment VARCHAR(256) NOT NULL,
+  attachment VARCHAR(256) NOT NULL UNIQUE ,
   product_id UUID NOT NULL,
   PRIMARY KEY(id),
   CONSTRAINT product_fk FOREIGN KEY (product_id) REFERENCES product(id)

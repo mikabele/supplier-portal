@@ -6,7 +6,7 @@ import cats.effect.Sync
 import domain.attachment._
 import domain.criteria._
 import domain.product._
-import domain.user.{ReadAuthorizedUser, Role}
+import domain.user.{AuthorizedUserDomain, Role}
 import doobie.Transactor
 import doobie.implicits._
 import doobie.postgres.implicits._
@@ -26,7 +26,7 @@ class DoobieProductRepositoryImpl[F[_]: Sync](tx: Transactor[F]) extends Product
   private val updateProductQuery = fr"UPDATE product "
   private val deleteProductQuery = fr"DELETE FROM product "
   private val getProductsQuery =
-    fr"SELECT p.id, p.name, p.category_id, s.id, s.name, s.address, p.price, p.description, p.status,p.publication_period " ++
+    fr"SELECT p.id, p.name, p.category_id, s.id, s.name, s.address, p.price, p.description, p.status,TO_CHAR(p.publication_date,'yyyy-MM-dd HH:mm:ss') " ++
       fr"FROM product AS p " ++
       fr"INNER JOIN supplier AS s " ++
       fr"ON p.supplier_id = s.id "
@@ -35,14 +35,18 @@ class DoobieProductRepositoryImpl[F[_]: Sync](tx: Transactor[F]) extends Product
 
   private val addAttachmentQuery    = fr"INSERT INTO attachment(attachment,product_id) VALUES ("
   private val removeAttachmentQuery = fr"DELETE FROM attachment "
-  private val findUserInGroupQuery = fr" p.id IN (SELECT p.id FROM product AS p" ++
-    fr" LEFT JOIN ( SELECT gtp.product_id,g.id " ++
-    fr" FROM group_to_product AS gtp " ++
-    fr"  INNER JOIN public.group AS g ON g.id = gtp.group_id " ++
-    fr" ) AS gtpu ON p.id=gtpu.product_id " ++
-    fr" WHERE gtpu.id IS NULL OR gtpu.id IN (SELECT group_id FROM group_to_user "
+  private val findUserInGroupQuery = fr" LEFT JOIN ( " ++
+    fr"SELECT gtp.product_id,g.id " ++
+    fr"FROM group_to_product AS gtp " ++
+    fr"  INNER JOIN public.group AS g " ++
+    fr"ON g.id = gtp.group_id   ) AS gtpu " ++
+    fr"ON p.id=gtpu.product_id " ++
+    fr"WHERE (gtpu.id IS NULL OR gtpu.id IN ( " ++
+    fr"SELECT group_id FROM group_to_user "
+
   private val deleteGroupProductQuery = fr"DELETE FROM group_to_product "
   private val deleteFromOrderQuery    = fr"DELETE FROM order_to_product "
+  private val checkUniqueProductQuery = fr"SELECT 1 WHERE EXISTS ( SELECT * FROM product"
 
   override def addProduct(product: ProductCreateDomain): F[UUID] = {
     val fragment =
@@ -62,7 +66,8 @@ class DoobieProductRepositoryImpl[F[_]: Sync](tx: Transactor[F]) extends Product
         fr"supplier_id = ${product.supplierId}",
         fr"price = ${product.price}",
         fr"description = ${product.description}",
-        fr"status = ${product.status}"
+        fr"status = ${product.status}",
+        fr"publication_date = CURRENT_DATE"
       ) ++
       fr"WHERE id = ${product.id}::UUID"
     fragment.update.run.transact(tx)
@@ -80,15 +85,15 @@ class DoobieProductRepositoryImpl[F[_]: Sync](tx: Transactor[F]) extends Product
   }
 
   override def viewProducts(
-    user:     ReadAuthorizedUser,
+    user:     AuthorizedUserDomain,
     statuses: NonEmptyList[ProductStatus]
   ): F[List[ProductReadDomain]] = {
     val ifNotManager =
       if (user.role != Role.Manager)
-        fr" WHERE " ++ in(
+        findUserInGroupQuery ++ fr" WHERE user_id = ${user.id}::UUID))" ++ fr" AND " ++ in(
           fr"status",
           statuses
-        ) ++ fr" AND " ++ findUserInGroupQuery ++ fr" WHERE user_id = ${user.id}::UUID))"
+        )
       else
         Fragment.empty
     for {
@@ -118,22 +123,22 @@ class DoobieProductRepositoryImpl[F[_]: Sync](tx: Transactor[F]) extends Product
       .getOrElse(List.empty[AttachmentReadDomain].pure[F])
   }
 
-  override def searchByCriteria(user: ReadAuthorizedUser, criteria: CriteriaDomain): F[List[ProductReadDomain]] = {
+  override def searchByCriteria(user: AuthorizedUserDomain, criteria: CriteriaDomain): F[List[ProductReadDomain]] = {
     for {
-      products <- (getProductsQuery ++ fr" INNER JOIN category AS c ON c.id=p.category_id " ++ whereAndOpt(
-        criteria.name.map(value => fr"p.name LIKE $value"),
-        criteria.categoryName.map(value => fr"c.name LIKE $value"),
-        criteria.description.map(value => fr"p.description LIKE $value"),
-        criteria.supplierName.map(value => fr"s.name LIKE $value"),
-        criteria.minPrice.map(value => fr"p.price >= $value"),
-        criteria.maxPrice.map(value => fr"p.price <= $value"),
-        criteria.startDate.map(value => fr"p.publication_period >= $value::DATE"),
-        criteria.endDate.map(value => fr"p.publication_period < $value::DATE")
-      ) ++ fr" AND p.status IN ('available'::product_status,'not_available'::product_status) AND "
-        ++ findUserInGroupQuery ++ fr" WHERE user_id = ${user.id}::UUID))")
-        .query[ProductReadDbDomain]
-        .to[List]
-        .transact(tx)
+      products <-
+        (getProductsQuery ++ fr" INNER JOIN category AS c ON c.id=p.category_id " ++ findUserInGroupQuery ++ fr" WHERE user_id = ${user.id}::UUID))" ++ fr" AND " ++ andOpt(
+          criteria.name.map(value => fr"p.name LIKE $value"),
+          criteria.categoryName.map(value => fr"c.name LIKE $value"),
+          criteria.description.map(value => fr"p.description LIKE $value"),
+          criteria.supplierName.map(value => fr"s.name LIKE $value"),
+          criteria.minPrice.map(value => fr"p.price >= $value"),
+          criteria.maxPrice.map(value => fr"p.price <= $value"),
+          criteria.startDate.map(value => fr"p.publication_date >= TO_TIMESTAMP($value,'yyyy-MM-dd HH:mm:ss')"),
+          criteria.endDate.map(value => fr"p.publication_date < TO_TIMESTAMP($value,'yyyy-MM-dd HH:mm:ss')")
+        ) ++ fr" AND p.status IN ('available'::product_status,'not_available'::product_status)")
+          .query[ProductReadDbDomain]
+          .to[List]
+          .transact(tx)
       attachments <- getAttachments(products)
     } yield joinProductsWithAttachments(products, attachments)
   }
@@ -152,5 +157,23 @@ class DoobieProductRepositoryImpl[F[_]: Sync](tx: Transactor[F]) extends Product
 
   override def removeAttachment(id: UUID): F[Int] = {
     (removeAttachmentQuery ++ fr"WHERE id = $id").update.run.transact(tx)
+  }
+
+  override def getNewProductsBySubscription(user: AuthorizedUserDomain): F[List[ProductReadDomain]] = {
+    for {
+      products <- (getProductsQuery ++
+        findUserInGroupQuery ++ fr" WHERE user_id = ${user.id}::UUID))" ++ fr" AND p.status IN ('available'::product_status,'not_available'::product_status) "
+        ++ fr" AND (p.category_id IN (SELECT category_id FROM category_subscription WHERE user_id = ${user.id}::UUID) " ++
+        fr"OR p.supplier_id IN (SELECT supplier_id FROM supplier_subscription WHERE user_id = ${user.id}::UUID)) " ++
+        fr"AND p.publication_date >= (SELECT last_date FROM last_notification)")
+        .query[ProductReadDbDomain]
+        .to[List]
+        .transact(tx)
+      attachments <- getAttachments(products)
+    } yield joinProductsWithAttachments(products, attachments)
+  }
+
+  override def checkUniqueProduct(name: String, supplierId: Int): F[Option[Int]] = {
+    (checkUniqueProductQuery ++ fr" WHERE name = $name AND supplier_id = $supplierId)").query[Int].option.transact(tx)
   }
 }

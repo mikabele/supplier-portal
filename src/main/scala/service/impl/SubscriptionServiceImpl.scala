@@ -4,7 +4,7 @@ import cats.Monad
 import cats.data.{Chain, EitherT}
 import cats.syntax.all._
 import domain.category._
-import domain.user.ReadAuthorizedUser
+import domain.user.AuthorizedUserDomain
 import dto.subscription._
 import dto.supplier._
 import repository.{SubscriptionRepository, SupplierRepository}
@@ -13,7 +13,7 @@ import service.error.general.GeneralError
 import service.error.subscription.SubscriptionError.{SubscriptionExists, SubscriptionNotExists}
 import service.error.supplier.SupplierError.SupplierNotFound
 import util.ConvertToErrorsUtil.instances.{fromF, fromValidatedNec}
-import util.ConvertToErrorsUtil.{ErrorsOr, _}
+import util.ConvertToErrorsUtil._
 import util.ModelMapper.DomainToDto._
 import util.ModelMapper.DtoToDomain._
 
@@ -21,7 +21,7 @@ class SubscriptionServiceImpl[F[_]: Monad](
   subscriptionRepository: SubscriptionRepository[F],
   supplierRepository:     SupplierRepository[F]
 ) extends SubscriptionService[F] {
-  override def subscribeCategory(user: ReadAuthorizedUser, categoryDto: CategorySubscriptionDto): F[ErrorsOr[Int]] = {
+  override def subscribeCategory(user: AuthorizedUserDomain, categoryDto: CategorySubscriptionDto): F[ErrorsOr[Int]] = {
     val res = for {
       category <- validateCategorySubscriptionDto(categoryDto).toErrorsOr(fromValidatedNec)
       _ <- EitherT.fromOptionF(
@@ -34,7 +34,7 @@ class SubscriptionServiceImpl[F[_]: Monad](
     res.value
   }
 
-  override def subscribeSupplier(user: ReadAuthorizedUser, supplierDto: SupplierSubscriptionDto): F[ErrorsOr[Int]] = {
+  override def subscribeSupplier(user: AuthorizedUserDomain, supplierDto: SupplierSubscriptionDto): F[ErrorsOr[Int]] = {
     val res = for {
       supplierSubscription <- validateSupplierSubscriptionDto(supplierDto).toErrorsOr(fromValidatedNec)
       _ <- EitherT.fromOptionF(
@@ -52,7 +52,7 @@ class SubscriptionServiceImpl[F[_]: Monad](
   }
 
   override def removeCategorySubscription(
-    user:     ReadAuthorizedUser,
+    user:     AuthorizedUserDomain,
     category: CategorySubscriptionDto
   ): F[ErrorsOr[Int]] = {
     {
@@ -72,7 +72,7 @@ class SubscriptionServiceImpl[F[_]: Monad](
   }
 
   override def removeSupplierSubscription(
-    user:     ReadAuthorizedUser,
+    user:     AuthorizedUserDomain,
     supplier: SupplierSubscriptionDto
   ): F[ErrorsOr[Int]] = {
     {
@@ -91,13 +91,13 @@ class SubscriptionServiceImpl[F[_]: Monad](
     }
   }
 
-  override def getCategorySubscriptions(user: ReadAuthorizedUser): F[List[Category]] = {
+  override def getCategorySubscriptions(user: AuthorizedUserDomain): F[List[Category]] = {
     for {
       categories <- subscriptionRepository.getCategorySubscriptions(user)
     } yield categories
   }
 
-  override def getSupplierSubscriptions(user: ReadAuthorizedUser): F[List[SupplierDto]] = {
+  override def getSupplierSubscriptions(user: AuthorizedUserDomain): F[List[SupplierDto]] = {
     for {
       suppliers <- subscriptionRepository.getSupplierSubscriptions(user)
     } yield suppliers.map(supplierDomainToDto)

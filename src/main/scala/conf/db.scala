@@ -1,6 +1,6 @@
 package conf
 
-import cats.effect.{Async, Resource, Sync}
+import cats.effect.{Async, Blocker, ContextShift, Resource, Sync}
 import cats.implicits._
 import conf.app.DbConf
 import doobie.Transactor
@@ -9,16 +9,18 @@ import doobie.util.ExecutionContexts
 import org.flywaydb.core.Flyway
 
 object db {
-  def transactor[F[_]: Async](
+  def transactor[F[_]: Async: ContextShift](
     dbConf: DbConf
   ): Resource[F, Transactor[F]] = for {
     ce <- ExecutionContexts.fixedThreadPool[F](10)
+    be <- Blocker[F]
     tx <- HikariTransactor.newHikariTransactor[F](
       driverClassName = dbConf.driver,
       url             = dbConf.url,
       user            = dbConf.user,
       pass            = dbConf.password,
-      connectEC       = ce
+      connectEC       = ce,
+      blocker         = be
     )
   } yield tx
 

@@ -4,7 +4,7 @@ import cats.data.NonEmptyList
 import cats.effect.Sync
 import cats.syntax.all._
 import domain.order._
-import domain.user.ReadAuthorizedUser
+import domain.user.{AuthorizedUserDomain, Role}
 import doobie.Transactor
 import doobie.implicits._
 import doobie.postgres.implicits._
@@ -20,7 +20,7 @@ class DoobieOrderRepositoryImpl[F[_]: Sync](tx: Transactor[F]) extends OrderRepo
 
   private val updateOrderQuery = fr"UPDATE public.order"
   private val selectOrdersQuery =
-    fr"SELECT o.id,o.user_id,o.status, o.ordered_start_date, o.total,o.address " ++
+    fr"SELECT o.id,o.user_id,o.status, TO_CHAR(o.ordered_start_date,'yyyy-MM-dd HH:mm:ss'), o.total,o.address " ++
       fr"FROM public.order AS o "
 
   private val selectOrderProductsQuery = fr"SELECT order_id,product_id,count FROM order_to_product "
@@ -31,11 +31,15 @@ class DoobieOrderRepositoryImpl[F[_]: Sync](tx: Transactor[F]) extends OrderRepo
   private val checkActiveOrdersQuery = fr"SELECT COUNT(*) FROM public.order AS o " ++
     fr"INNER JOIN order_to_product AS otp ON o.id=otp.order_id "
 
-  override def viewActiveOrders(user: ReadAuthorizedUser): F[List[OrderReadDomain]] = {
+  override def viewActiveOrders(user: AuthorizedUserDomain): F[List[OrderReadDomain]] = {
+    val ifNotCourier =
+      if (user.role != Role.Courier)
+        fr" WHERE o.status != 'cancelled'::order_status AND o.user_id=${user.id}::UUID "
+      else
+        fr" WHERE o.status='ordered'::order_status"
+
     for {
-      orders <- (selectOrdersQuery
-        ++ fr" WHERE (o.status != 'cancelled'::order_status AND o.user_id=${user.id}::UUID) "
-        ++ courierGetOrdersQuery ++ fr" WHERE id = ${user.id}::UUID AND role = 'courier'::user_role)")
+      orders <- (selectOrdersQuery ++ ifNotCourier)
         .query[OrderReadDbDomain]
         .to[List]
         .transact(tx)
@@ -56,7 +60,7 @@ class DoobieOrderRepositoryImpl[F[_]: Sync](tx: Transactor[F]) extends OrderRepo
       .getOrElse(List.empty[OrderProductReadDomain].pure[F])
   }
 
-  override def createOrder(user: ReadAuthorizedUser, domain: OrderCreateDomain): F[UUID] = {
+  override def createOrder(user: AuthorizedUserDomain, domain: OrderCreateDomain): F[UUID] = {
     val res = for {
       id <- (insertOrderQuery ++ fr"${user.id}::UUID,${domain.total},${domain.address})").update
         .withUniqueGeneratedKeys[UUID]("id")

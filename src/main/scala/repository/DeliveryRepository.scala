@@ -1,17 +1,17 @@
 package repository
 
-import cats.effect.kernel.Sync
+import cats.effect.Sync
 import domain.delivery.{DeliveryCreateDomain, DeliveryReadDomain}
-import domain.user.ReadAuthorizedUser
+import domain.user.AuthorizedUserDomain
 import doobie.util.transactor.Transactor
 import repository.impl.DoobieDeliveryRepositoryImpl
 
 import java.util.UUID
 
 trait DeliveryRepository[F[_]] {
-  def delivered(courier: ReadAuthorizedUser, id: UUID): F[Int]
+  def delivered(courier: AuthorizedUserDomain, id: UUID): F[Int]
 
-  def createDelivery(courier: ReadAuthorizedUser, domain: DeliveryCreateDomain): F[UUID]
+  def createDelivery(courier: AuthorizedUserDomain, domain: DeliveryCreateDomain): F[UUID]
 
   def showDeliveries(): F[List[DeliveryReadDomain]]
 }

@@ -5,7 +5,7 @@ import cats.effect.Sync
 import domain.attachment.AttachmentCreateDomain
 import domain.criteria.CriteriaDomain
 import domain.product._
-import domain.user.ReadAuthorizedUser
+import domain.user.AuthorizedUserDomain
 import doobie.Transactor
 import repository.impl.DoobieProductRepositoryImpl
 import types.UuidStr
@@ -13,13 +13,16 @@ import types.UuidStr
 import java.util.UUID
 
 trait ProductRepository[F[_]] {
+  def checkUniqueProduct(name: String, supplierId: Int): F[Option[Int]]
+
+  def getNewProductsBySubscription(user: AuthorizedUserDomain): F[List[ProductReadDomain]]
 
   def addProduct(product:    ProductCreateDomain):   F[UUID]
   def updateProduct(product: ProductUpdateDomain):   F[Int]
   def deleteProduct(id:      UUID): F[Int]
-  def viewProducts(user:     ReadAuthorizedUser, statuses: NonEmptyList[ProductStatus]): F[List[ProductReadDomain]]
+  def viewProducts(user:     AuthorizedUserDomain, statuses: NonEmptyList[ProductStatus]): F[List[ProductReadDomain]]
   def attach(attachment:     AttachmentCreateDomain): F[UUID]
-  def searchByCriteria(user: ReadAuthorizedUser, criteria: CriteriaDomain): F[List[ProductReadDomain]]
+  def searchByCriteria(user: AuthorizedUserDomain, criteria: CriteriaDomain): F[List[ProductReadDomain]]
   def getByIds(ids:          NonEmptyList[UuidStr]): F[List[ProductReadDomain]]
   def removeAttachment(id:   UUID):                  F[Int]
 

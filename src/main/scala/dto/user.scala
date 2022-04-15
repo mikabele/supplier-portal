@@ -8,7 +8,7 @@ object user {
     password: String
   )
 
-  final case class ReadAuthorizedUserDto(
+  final case class AuthorizedUserDto(
     id:      String,
     name:    String,
     surname: String,

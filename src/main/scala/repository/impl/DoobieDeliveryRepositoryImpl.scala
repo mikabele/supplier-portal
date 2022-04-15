@@ -3,7 +3,7 @@ package repository.impl
 import cats.effect.Sync
 import cats.syntax.all._
 import domain.delivery._
-import domain.user.ReadAuthorizedUser
+import domain.user.AuthorizedUserDomain
 import doobie.Transactor
 import doobie.implicits._
 import doobie.postgres.implicits._
@@ -23,7 +23,7 @@ class DoobieDeliveryRepositoryImpl[F[_]: Sync](tx: Transactor[F]) extends Delive
   private val updateOrderStatusQuery = fr"UPDATE public.order SET status = "
   private val updateDeliveryQuery    = fr"UPDATE delivery "
 
-  override def delivered(courier: ReadAuthorizedUser, id: UUID): F[Int] = {
+  override def delivered(courier: AuthorizedUserDomain, id: UUID): F[Int] = {
     val res = for {
       c <-
         (updateDeliveryQuery ++ fr"SET delivery_finish_date = CURRENT_DATE" ++
@@ -34,7 +34,7 @@ class DoobieDeliveryRepositoryImpl[F[_]: Sync](tx: Transactor[F]) extends Delive
     res.transact(tx)
   }
 
-  override def createDelivery(courier: ReadAuthorizedUser, domain: DeliveryCreateDomain): F[UUID] = {
+  override def createDelivery(courier: AuthorizedUserDomain, domain: DeliveryCreateDomain): F[UUID] = {
     val res = for {
       id <- (createDeliveryQuery ++ fr"(${courier.id}::UUID,${domain.orderId}::UUID)").update
         .withUniqueGeneratedKeys[UUID]("id")

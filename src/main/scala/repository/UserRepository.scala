@@ -2,17 +2,18 @@ package repository
 
 import cats.data.NonEmptyList
 import cats.effect.Sync
-import domain.user.{NonAuthorizedUser, ReadAuthorizedUser}
+import domain.user.{AuthorizedUserDomain, NonAuthorizedUserDomain}
 import doobie.util.transactor.Transactor
 import repository.impl.DoobieUserRepositoryImpl
-import types.UuidStr
 
 trait UserRepository[F[_]] {
-  def tryGetUser(userDomain: NonAuthorizedUser): F[Option[ReadAuthorizedUser]]
+  def getAllClients(): F[List[AuthorizedUserDomain]] //technical method
 
-  def getByIds(userIds: NonEmptyList[String]): F[List[ReadAuthorizedUser]]
+  def tryGetUser(userDomain: NonAuthorizedUserDomain): F[Option[AuthorizedUserDomain]]
 
-  def getUsers(): F[List[ReadAuthorizedUser]] // technical method
+  def getByIds(userIds: NonEmptyList[String]): F[List[AuthorizedUserDomain]]
+
+  def getUsers(): F[List[AuthorizedUserDomain]] // technical method
 }
 
 object UserRepository {

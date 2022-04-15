@@ -3,7 +3,7 @@ package service.error
 import service.error.general.ForbiddenError
 
 object auth {
-  object CookieError {
+  object AuthError {
     final case class CookieValidationFail(ex: String) extends ForbiddenError {
       override def message: String = s"Cookie validation failed : reason - $ex"
     }

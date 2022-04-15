@@ -1,8 +1,8 @@
 package controller
 
-import cats.effect.Concurrent
+import cats.effect.Sync
 import cats.syntax.all._
-import domain.user.{ReadAuthorizedUser, Role}
+import domain.user.{AuthorizedUserDomain, Role}
 import dto.attachment._
 import dto.criteria.CriteriaDto
 import dto.product._
@@ -16,14 +16,14 @@ import util.ResponseHandlingUtil.marshalResponse
 
 object ProductController {
 
-  def authedRoutes[F[_]: Concurrent](
+  def authedRoutes[F[_]: Sync](
     productService: ProductService[F]
   )(
     implicit dsl: Http4sDsl[F]
-  ): AuthedRoutes[ReadAuthorizedUser, F] = {
+  ): AuthedRoutes[AuthorizedUserDomain, F] = {
     import dsl._
 
-    def addProduct(): AuthedRoutes[ReadAuthorizedUser, F] = AuthedRoutes.of[ReadAuthorizedUser, F] {
+    def addProduct(): AuthedRoutes[AuthorizedUserDomain, F] = AuthedRoutes.of[AuthorizedUserDomain, F] {
       case req @ POST -> Root / "api" / "product" as user if user.role == Role.Manager =>
         val res = for {
           product <- req.req.as[ProductCreateDto]
@@ -35,7 +35,7 @@ object ProductController {
       case POST -> Root / "api" / "product" as user => Forbidden(InvalidUserRole(user.role, List(Role.Manager)))
     }
 
-    def updateProduct(): AuthedRoutes[ReadAuthorizedUser, F] = AuthedRoutes.of[ReadAuthorizedUser, F] {
+    def updateProduct(): AuthedRoutes[AuthorizedUserDomain, F] = AuthedRoutes.of[AuthorizedUserDomain, F] {
       case req @ PUT -> Root / "api" / "product" as user if user.role == Role.Manager =>
         val res = for {
           product <- req.req.as[ProductUpdateDto]
@@ -47,7 +47,7 @@ object ProductController {
       case PUT -> Root / "api" / "product" as user => Forbidden(InvalidUserRole(user.role, List(Role.Manager)))
     }
 
-    def deleteProduct(): AuthedRoutes[ReadAuthorizedUser, F] = AuthedRoutes.of[ReadAuthorizedUser, F] {
+    def deleteProduct(): AuthedRoutes[AuthorizedUserDomain, F] = AuthedRoutes.of[AuthorizedUserDomain, F] {
       case DELETE -> Root / "api" / "product" / UUIDVar(id) as user if user.role == Role.Manager =>
         val res = for {
           result <- productService.deleteProduct(id)
@@ -58,7 +58,7 @@ object ProductController {
         Forbidden(InvalidUserRole(user.role, List(Role.Manager)))
     }
 
-    def viewProducts(): AuthedRoutes[ReadAuthorizedUser, F] = AuthedRoutes.of[ReadAuthorizedUser, F] {
+    def viewProducts(): AuthedRoutes[AuthorizedUserDomain, F] = AuthedRoutes.of[AuthorizedUserDomain, F] {
       case GET -> Root / "api" / "product" as user if List(Role.Manager, Role.Client).contains(user.role) =>
         for {
           products <- Ok(productService.readProducts(user))
@@ -67,7 +67,7 @@ object ProductController {
         Forbidden(InvalidUserRole(user.role, List(Role.Manager, Role.Client)))
     }
 
-    def attachToProduct(): AuthedRoutes[ReadAuthorizedUser, F] = AuthedRoutes.of[ReadAuthorizedUser, F] {
+    def attachToProduct(): AuthedRoutes[AuthorizedUserDomain, F] = AuthedRoutes.of[AuthorizedUserDomain, F] {
       case req @ POST -> Root / "api" / "product" / "attachment" as user if user.role == Role.Manager =>
         val res = for {
           attachment <- req.req.as[AttachmentCreateDto]
@@ -79,7 +79,7 @@ object ProductController {
         Forbidden(InvalidUserRole(user.role, List(Role.Manager)))
     }
 
-    def removeAttachment(): AuthedRoutes[ReadAuthorizedUser, F] = AuthedRoutes.of[ReadAuthorizedUser, F] {
+    def removeAttachment(): AuthedRoutes[AuthorizedUserDomain, F] = AuthedRoutes.of[AuthorizedUserDomain, F] {
       case DELETE -> Root / "api" / "product" / "attachment" / UUIDVar(id) as user if user.role == Role.Manager =>
         val res = for {
           result <- productService.removeAttachment(id)
@@ -90,7 +90,7 @@ object ProductController {
         Forbidden(InvalidUserRole(user.role, List(Role.Manager)))
     }
 
-    def search(): AuthedRoutes[ReadAuthorizedUser, F] = AuthedRoutes.of[ReadAuthorizedUser, F] {
+    def search(): AuthedRoutes[AuthorizedUserDomain, F] = AuthedRoutes.of[AuthorizedUserDomain, F] {
       case req @ POST -> Root / "api" / "product" / "search" as user if user.role == Role.Client =>
         val res = for {
           criteria <- req.req.as[CriteriaDto]

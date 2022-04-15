@@ -1,6 +1,6 @@
 package controller
 
-import cats.effect.Concurrent
+import cats.effect.Sync
 import cats.syntax.all._
 import dto.user.NonAuthorizedUserDto
 import io.circe.generic.auto._
@@ -12,7 +12,7 @@ import util.ResponseHandlingUtil.errorsToHttpResponse
 
 object AuthenticationController {
 
-  def routes[F[_]: Concurrent](
+  def routes[F[_]: Sync](
     authenticationService: AuthenticationService[F]
   )(
     implicit dsl: Http4sDsl[F]

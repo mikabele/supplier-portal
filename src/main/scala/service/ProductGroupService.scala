@@ -1,6 +1,6 @@
 package service
 
-import cats.effect.kernel.Sync
+import cats.effect.Sync
 import dto.group._
 import repository.{ProductGroupRepository, ProductRepository, UserRepository}
 import service.impl.ProductGroupServiceImpl

@@ -1,8 +1,7 @@
 package domain
 
-import domain.user.ReadAuthorizedUser
+import domain.user.AuthorizedUserDomain
 import types._
-import order._
 
 object delivery {
 
@@ -13,8 +12,8 @@ object delivery {
   final case class DeliveryReadDomain(
     id:                 UuidStr,
     orderId:            UuidStr,
-    courier:            ReadAuthorizedUser,
-    deliveryStartDate:  DateStr,
-    deliveryFinishDate: Option[DateStr]
+    courier:            AuthorizedUserDomain,
+    deliveryStartDate:  DateTimeStr,
+    deliveryFinishDate: Option[DateTimeStr]
   )
 }

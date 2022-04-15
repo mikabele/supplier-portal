@@ -4,17 +4,17 @@ import cats.Monad
 import cats.data.{Chain, EitherT, NonEmptyList}
 import cats.syntax.all._
 import domain.product.ProductStatus
-import domain.user.ReadAuthorizedUser
+import domain.user.AuthorizedUserDomain
 import dto.attachment._
 import dto.criteria.CriteriaDto
 import dto.product._
 import repository.{OrderRepository, ProductRepository, SupplierRepository}
 import service.ProductService
-import service.error.attachment.AttachmentError.AttachmentNotFound
+import service.error.attachment.AttachmentError.{AttachmentExists, AttachmentNotFound}
 import service.error.general.GeneralError
-import service.error.product.ProductError.{DeclineDeleteProduct, ProductNotFound}
+import service.error.product.ProductError.{DeclineDeleteProduct, ProductExists, ProductNotFound}
 import service.error.supplier.SupplierError.SupplierNotFound
-import util.ConvertToErrorsUtil.{ErrorsOr, _}
+import util.ConvertToErrorsUtil._
 import util.ConvertToErrorsUtil.instances.{fromF, fromValidatedNec}
 import util.ModelMapper.DomainToDto._
 import util.ModelMapper.DtoToDomain._
@@ -33,6 +33,12 @@ class ProductServiceImpl[F[_]: Monad](
         supplierRepository.getById(product.supplierId),
         Chain[GeneralError](SupplierNotFound(product.supplierId.value))
       )
+      check <- productRep.checkUniqueProduct(product.name.value, product.supplierId.value).toErrorsOr
+      _ <- EitherT.cond(
+        check.isEmpty,
+        (),
+        Chain[GeneralError](ProductExists(product.name.value, product.supplierId.value))
+      )
       id <- productRep.addProduct(product).toErrorsOr
     } yield id
 
@@ -47,6 +53,12 @@ class ProductServiceImpl[F[_]: Monad](
       _ <- EitherT.fromOptionF(
         supplierRepository.getById(domain.supplierId),
         Chain[GeneralError](SupplierNotFound(domain.supplierId.value))
+      )
+      check <- productRep.checkUniqueProduct(domain.name.value, domain.supplierId.value).toErrorsOr
+      _ <- EitherT.cond(
+        check.isEmpty,
+        (),
+        Chain[GeneralError](ProductExists(domain.name.value, domain.supplierId.value))
       )
       count <- productRep.updateProduct(domain).toErrorsOr
       _     <- EitherT.cond(count > 0, count, Chain[GeneralError](ProductNotFound(domain.id.value)))
@@ -66,7 +78,7 @@ class ProductServiceImpl[F[_]: Monad](
     res.value
   }
 
-  override def readProducts(user: ReadAuthorizedUser): F[List[ProductReadDto]] = {
+  override def readProducts(user: AuthorizedUserDomain): F[List[ProductReadDto]] = {
     for {
       products <- productRep.viewProducts(user, NonEmptyList.of(ProductStatus.Available, ProductStatus.NotAvailable))
     } yield products.map(readProductDomainToDto)
@@ -79,10 +91,14 @@ class ProductServiceImpl[F[_]: Monad](
     val res = for {
       attachment <- validateAttachmentDto(attachmentDto).toErrorsOr(fromValidatedNec)
       products   <- productRep.getByIds(NonEmptyList.of(attachment.productId)).toErrorsOr
-      _ <- EitherT.cond(
-        products.nonEmpty,
-        products,
+      product <- EitherT.fromOption(
+        products.headOption,
         Chain[GeneralError](ProductNotFound(attachment.productId.value))
+      )
+      _ <- EitherT.cond(
+        !product.attachments.map(_.attachment).contains(attachment.attachment),
+        (),
+        Chain[GeneralError](AttachmentExists)
       )
       id <- productRep.attach(attachment).toErrorsOr
     } yield id
@@ -91,7 +107,7 @@ class ProductServiceImpl[F[_]: Monad](
   }
 
   override def searchByCriteria(
-    user:        ReadAuthorizedUser,
+    user:        AuthorizedUserDomain,
     criteriaDto: CriteriaDto
   ): F[ErrorsOr[List[ProductReadDto]]] = {
     val res = for {

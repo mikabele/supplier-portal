@@ -1,11 +1,15 @@
 package service.error
 
-import service.error.general.{ForbiddenError, GeneralError, NotFoundError}
+import service.error.general.{BadRequestError, ForbiddenError, NotFoundError}
 
 object product {
   object ProductError {
     final case class ProductNotFound(id: String) extends NotFoundError {
       override def message: String = s"Product with id $id doesn't exist"
+    }
+
+    final case class ProductExists(name: String, supplier: Int) extends BadRequestError {
+      override def message: String = s"Product with name $name and supplier $supplier already exists"
     }
 
     final case class DeclineDeleteProduct(count: Int) extends ForbiddenError {

@@ -1,6 +1,6 @@
 package dto
 
-import dto.user.ReadAuthorizedUserDto
+import dto.user.AuthorizedUserDto
 
 object delivery {
 
@@ -11,7 +11,7 @@ object delivery {
   final case class DeliveryReadDto(
     id:                 String,
     order:              String,
-    courier:            ReadAuthorizedUserDto,
+    courier:            AuthorizedUserDto,
     deliveryStartDate:  String,
     deliveryFinishDate: Option[String]
   )

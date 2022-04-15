@@ -2,7 +2,6 @@ package domain
 
 import enumeratum.EnumEntry.Snakecase
 import enumeratum.values.{IntCirceEnum, IntDoobieEnum, IntEnum, IntEnumEntry}
-import io.circe.Encoder
 
 object category {
   // TODO : add more categories
@@ -14,8 +13,5 @@ object category {
     final case object Electronics extends Category(2)
 
     val values: IndexedSeq[Category] = findValues
-
-//    implicit override val circeEncoder: Encoder[Category] =
-//      Encoder.forProduct2("id", "name")(s => (s.value, s.toString))
   }
 }

@@ -8,7 +8,7 @@ CREATE TABLE "order"
     user_id UUID NOT NULL ,
     total FLOAT DEFAULT 0,
     status ORDER_STATUS DEFAULT 'ordered',
-    ordered_start_date DATE DEFAULT CURRENT_DATE,
+    ordered_start_date TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
     address VARCHAR(256) NOT NULL,
     PRIMARY KEY (id),
     CONSTRAINT user_fk FOREIGN KEY (user_id) REFERENCES "user"(id)

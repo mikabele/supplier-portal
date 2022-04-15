@@ -4,8 +4,7 @@ import cats.Monad
 import cats.data.{Chain, EitherT, NonEmptyList}
 import domain.user._
 import dto.user.NonAuthorizedUserDto
-import org.http4s.Request
-import org.http4s.headers.Cookie
+import org.http4s.{headers, Request}
 import org.reactormonk.{CryptoBits, PrivateKey}
 import repository.UserRepository
 import service.AuthenticationService
@@ -35,9 +34,7 @@ class AuthenticationServiceImpl[F[_]: Monad](userRepository: UserRepository[F]) 
 
   private def validateCookie(req: Request[F]): Either[String, String] = {
     for {
-      header <- req.headers
-        .get[Cookie]
-        .toRight("Cookie parsing error")
+      header <- headers.Cookie.from(req.headers).toRight("Cookie parsing error")
       cookie <- header.values.toList
         .find(_.name == "authcookie")
         .toRight("Couldn't find the authcookie")
@@ -47,7 +44,7 @@ class AuthenticationServiceImpl[F[_]: Monad](userRepository: UserRepository[F]) 
     } yield id
   }
 
-  override def retrieveUser(req: Request[F]): F[Either[String, ReadAuthorizedUser]] = {
+  override def retrieveUser(req: Request[F]): F[Either[String, AuthorizedUserDomain]] = {
     val res = for {
       token <- EitherT.fromEither(validateCookie(req))
       users <- EitherT.liftF(userRepository.getByIds(NonEmptyList.of(token)))

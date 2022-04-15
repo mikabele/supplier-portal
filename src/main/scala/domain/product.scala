@@ -21,26 +21,26 @@ object product {
   )
 
   final case class ProductReadDomain(
-    id:                UuidStr,
-    name:              NonEmptyStr,
-    category:          Category,
-    supplier:          SupplierDomain,
-    price:             NonNegativeFloat,
-    description:       String,
-    status:            ProductStatus,
-    publicationPeriod: DateStr,
-    attachments:       List[AttachmentReadDomain]
+    id:              UuidStr,
+    name:            NonEmptyStr,
+    category:        Category,
+    supplier:        SupplierDomain,
+    price:           NonNegativeFloat,
+    description:     String,
+    status:          ProductStatus,
+    publicationDate: DateTimeStr,
+    attachments:     List[AttachmentReadDomain]
   )
 
   final case class ProductReadDbDomain(
-    id:                UuidStr,
-    name:              NonEmptyStr,
-    category:          Category,
-    supplier:          SupplierDomain,
-    price:             NonNegativeFloat,
-    description:       String,
-    status:            ProductStatus,
-    publicationPeriod: DateStr
+    id:              UuidStr,
+    name:            NonEmptyStr,
+    category:        Category,
+    supplier:        SupplierDomain,
+    price:           NonNegativeFloat,
+    description:     String,
+    status:          ProductStatus,
+    publicationDate: DateTimeStr
   )
 
   final case class ProductUpdateDomain(

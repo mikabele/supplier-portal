@@ -24,7 +24,7 @@ object order {
     userId:           UuidStr,
     orderItems:       List[OrderProductReadDomain],
     orderStatus:      OrderStatus,
-    orderedStartDate: DateStr,
+    orderedStartDate: DateTimeStr,
     total:            NonNegativeFloat,
     address:          NonEmptyStr
   )
@@ -33,7 +33,7 @@ object order {
     id:               UuidStr,
     userId:           UuidStr,
     orderStatus:      OrderStatus,
-    orderedStartDate: DateStr,
+    orderedStartDate: DateTimeStr,
     total:            NonNegativeFloat,
     address:          NonEmptyStr
   )

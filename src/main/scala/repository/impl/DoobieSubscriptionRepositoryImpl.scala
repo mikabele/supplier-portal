@@ -2,17 +2,15 @@ package repository.impl
 
 import cats.effect.Sync
 import domain.category._
+import domain.subscription._
 import domain.supplier._
+import domain.user.AuthorizedUserDomain
 import doobie.implicits._
 import doobie.postgres.implicits._
-import doobie.util.transactor.Transactor
 import doobie.refined.implicits._
-import domain.subscription._
-import domain.user.ReadAuthorizedUser
+import doobie.util.transactor.Transactor
 import repository.SubscriptionRepository
 import repository.impl.logger.logger._
-
-import java.util.UUID
 
 class DoobieSubscriptionRepositoryImpl[F[_]: Sync](tx: Transactor[F]) extends SubscriptionRepository[F] {
 
@@ -25,17 +23,19 @@ class DoobieSubscriptionRepositoryImpl[F[_]: Sync](tx: Transactor[F]) extends Su
   private val getSupplierSubQuery =
     fr"SELECT s.id,s.name,s.address FROM supplier AS s INNER JOIN supplier_subscription AS ss ON s.id=ss.supplier_id "
 
-  override def subscribeCategory(user: ReadAuthorizedUser, category: CategorySubscriptionDomain): F[Int] = {
+  private val updateLastNotificationDateQuery = fr"UPDATE last_notification SET last_date = CURRENT_DATE"
+
+  override def subscribeCategory(user: AuthorizedUserDomain, category: CategorySubscriptionDomain): F[Int] = {
     (subscribeCategoryQuery ++ fr"(${category.category}, ${user.id}::UUID)").update.run
       .transact(tx)
   }
 
-  override def subscribeSupplier(user: ReadAuthorizedUser, supplier: SupplierSubscriptionDomain): F[Int] =
+  override def subscribeSupplier(user: AuthorizedUserDomain, supplier: SupplierSubscriptionDomain): F[Int] =
     (subscribeSupplierQuery ++ fr"(${supplier.supplierId}, ${user.id}::UUID)").update.run
       .transact(tx)
 
   override def checkCategorySubscription(
-    user:     ReadAuthorizedUser,
+    user:     AuthorizedUserDomain,
     category: CategorySubscriptionDomain
   ): F[Option[Int]] = {
     (checkSubscriptionQuery ++ fr"category_subscription WHERE user_id=${user.id}::UUID AND category_id=${category.category})")
@@ -45,7 +45,7 @@ class DoobieSubscriptionRepositoryImpl[F[_]: Sync](tx: Transactor[F]) extends Su
   }
 
   override def checkSupplierSubscription(
-    user:     ReadAuthorizedUser,
+    user:     AuthorizedUserDomain,
     supplier: SupplierSubscriptionDomain
   ): F[Option[Int]] = {
     (checkSubscriptionQuery ++ fr"supplier_subscription WHERE user_id=${user.id}::UUID AND supplier_id=${supplier.supplierId})")
@@ -54,21 +54,25 @@ class DoobieSubscriptionRepositoryImpl[F[_]: Sync](tx: Transactor[F]) extends Su
       .transact(tx)
   }
 
-  override def removeSupplierSubscription(user: ReadAuthorizedUser, supplier: SupplierSubscriptionDomain): F[Int] = {
+  override def removeSupplierSubscription(user: AuthorizedUserDomain, supplier: SupplierSubscriptionDomain): F[Int] = {
     (removeSupplierSubQuery ++ fr" WHERE user_id=${user.id}::UUID AND supplier_id=${supplier.supplierId}").update.run
       .transact(tx)
   }
 
-  override def removeCategorySubscription(user: ReadAuthorizedUser, category: CategorySubscriptionDomain): F[Int] = {
+  override def removeCategorySubscription(user: AuthorizedUserDomain, category: CategorySubscriptionDomain): F[Int] = {
     (removeCategorySubQuery ++ fr" WHERE user_id=${user.id}::UUID AND category_id=${category.category}").update.run
       .transact(tx)
   }
 
-  override def getSupplierSubscriptions(user: ReadAuthorizedUser): F[List[SupplierDomain]] = {
+  override def getSupplierSubscriptions(user: AuthorizedUserDomain): F[List[SupplierDomain]] = {
     (getSupplierSubQuery ++ fr" WHERE ss.user_id = ${user.id}::UUID").query[SupplierDomain].to[List].transact(tx)
   }
 
-  override def getCategorySubscriptions(user: ReadAuthorizedUser): F[List[Category]] = {
+  override def getCategorySubscriptions(user: AuthorizedUserDomain): F[List[Category]] = {
     (getCategorySubQuery ++ fr" WHERE user_id = ${user.id}::UUID").query[Category].to[List].transact(tx)
+  }
+
+  override def updateLastNotificationDate(): F[Int] = {
+    updateLastNotificationDateQuery.update.run.transact(tx)
   }
 }

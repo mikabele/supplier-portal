@@ -1,7 +1,7 @@
 package service
 
-import cats.effect.kernel.Sync
-import domain.user.ReadAuthorizedUser
+import cats.effect.Sync
+import domain.user.AuthorizedUserDomain
 import dto.delivery.{DeliveryCreateDto, DeliveryReadDto}
 import repository.{DeliveryRepository, OrderRepository}
 import service.impl.DeliveryServiceImpl
@@ -12,8 +12,8 @@ import java.util.UUID
 trait DeliveryService[F[_]] {
   def showDeliveries(): F[List[DeliveryReadDto]]
 
-  def delivered(courier:      ReadAuthorizedUser, id:        UUID):              F[ErrorsOr[Int]]
-  def createDelivery(courier: ReadAuthorizedUser, createDto: DeliveryCreateDto): F[ErrorsOr[UUID]]
+  def delivered(courier:      AuthorizedUserDomain, id:        UUID):              F[ErrorsOr[Int]]
+  def createDelivery(courier: AuthorizedUserDomain, createDto: DeliveryCreateDto): F[ErrorsOr[UUID]]
 }
 
 object DeliveryService {

@@ -11,7 +11,7 @@ object criteria {
     supplierName: Option[String]           = None,
     minPrice:     Option[NonNegativeFloat] = None,
     maxPrice:     Option[NonNegativeFloat] = None,
-    startDate:    Option[DateStr]          = None,
-    endDate:      Option[DateStr]          = None
+    startDate:    Option[DateTimeStr]      = None,
+    endDate:      Option[DateTimeStr]      = None
   )
 }

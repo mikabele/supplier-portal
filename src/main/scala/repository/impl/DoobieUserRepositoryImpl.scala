@@ -4,13 +4,12 @@ import cats.data.NonEmptyList
 import cats.effect.Sync
 import domain.user._
 import doobie.implicits._
+import doobie.postgres.implicits._
+import doobie.refined.implicits._
+import doobie.util.fragments._
 import doobie.util.transactor.Transactor
 import repository.UserRepository
 import repository.impl.logger.logger._
-import doobie.refined.implicits._
-import doobie.postgres.implicits._
-import types.UuidStr
-import doobie.util.fragments._
 
 import java.util.UUID
 
@@ -18,21 +17,25 @@ class DoobieUserRepositoryImpl[F[_]: Sync](tx: Transactor[F]) extends UserReposi
 
   private val selectUsersQuery = fr"SELECT id,name,surname,role,phone,email FROM public.user"
 
-  override def getUsers(): F[List[ReadAuthorizedUser]] = {
-    selectUsersQuery.query[ReadAuthorizedUser].to[List].transact(tx)
+  override def getUsers(): F[List[AuthorizedUserDomain]] = {
+    selectUsersQuery.query[AuthorizedUserDomain].to[List].transact(tx)
   }
 
-  override def getByIds(userIds: NonEmptyList[String]): F[List[ReadAuthorizedUser]] = {
+  override def getByIds(userIds: NonEmptyList[String]): F[List[AuthorizedUserDomain]] = {
     (selectUsersQuery ++ fr" WHERE " ++ in(fr"id", userIds.map(id => UUID.fromString(id))))
-      .query[ReadAuthorizedUser]
+      .query[AuthorizedUserDomain]
       .to[List]
       .transact(tx)
   }
 
-  override def tryGetUser(userDomain: NonAuthorizedUser): F[Option[ReadAuthorizedUser]] = {
+  override def tryGetUser(userDomain: NonAuthorizedUserDomain): F[Option[AuthorizedUserDomain]] = {
     (selectUsersQuery ++ fr" WHERE login = ${userDomain.login} AND password = ${userDomain.password}")
-      .query[ReadAuthorizedUser]
+      .query[AuthorizedUserDomain]
       .option
       .transact(tx)
+  }
+
+  override def getAllClients(): F[List[AuthorizedUserDomain]] = {
+    (selectUsersQuery ++ fr" WHERE role='client'::user_role").query[AuthorizedUserDomain].to[List].transact(tx)
   }
 }

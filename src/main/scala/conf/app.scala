@@ -4,7 +4,8 @@ object app {
 
   final case class AppConf(
     server: ServerConf,
-    db:     DbConf
+    db:     DbConf,
+    email:  EmailNotificatorConf
   )
 
   final case class DbConf(
@@ -19,6 +20,14 @@ object app {
   final case class ServerConf(
     host: String,
     port: Int
+  )
+
+  final case class EmailNotificatorConf(
+    url:      String,
+    email:    String,
+    user:     String,
+    password: String,
+    delay:    Int // in minutes
   )
 
 }

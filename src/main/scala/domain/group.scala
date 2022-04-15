@@ -8,16 +8,6 @@ object group {
     name: NonEmptyStr
   )
 
-//  final case class GroupWithUsersDomain(
-//    id:      UuidStr,
-//    userIds: List[UuidStr]
-//  )
-//
-//  final case class GroupWithProductsDomain(
-//    id:         UuidStr,
-//    productIds: List[UuidStr]
-//  )
-
   final case class GroupWithUsersDomain(
     id:      UuidStr,
     userIds: NonEmptyList[UuidStr]

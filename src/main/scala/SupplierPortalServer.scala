@@ -1,4 +1,3 @@
-import cats.Applicative
 import cats.effect._
 import cats.syntax.all._
 import conf.app.AppConf
@@ -18,11 +17,10 @@ object SupplierPortalServer extends IOApp {
       .as(ExitCode.Success)
   }
 
-  private def serverResource[F[_]: Async: Applicative]: Resource[F, Server] = for {
+  private def serverResource[F[_]: ConcurrentEffect: Timer: ContextShift]: Resource[F, Server[F]] = for {
     conf    <- Resource.eval(parser.decodePathF[F, AppConf]("app"))
     httpApp <- AppContext.setUp[F](conf)
-
-    logger = LogManager.getLogger("root")
+    logger   = LogManager.getLogger("root")
     server <- BlazeServerBuilder[F]
       .withExecutionContext(ExecutionContext.global)
       .bindHttp(conf.server.port, conf.server.host)

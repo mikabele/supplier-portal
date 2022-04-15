@@ -1,7 +1,7 @@
 package util
 
 import cats.data.Chain
-import cats.effect.kernel.Concurrent
+import cats.effect.Sync
 import cats.syntax.all._
 import org.http4s.circe.CirceEntityCodec.circeEntityEncoder
 import org.http4s.dsl.Http4sDsl
@@ -10,7 +10,7 @@ import service.error.general._
 import util.ConvertToErrorsUtil.ErrorsOr
 
 object ResponseHandlingUtil {
-  def errorsToHttpResponse[F[_]: Concurrent](
+  def errorsToHttpResponse[F[_]: Sync](
     errors: Chain[GeneralError]
   )(
     implicit dsl: Http4sDsl[F]
@@ -26,7 +26,7 @@ object ResponseHandlingUtil {
     }
   }
 
-  def marshalResponse[T, F[_]: Concurrent](
+  def marshalResponse[T, F[_]: Sync](
     result: F[ErrorsOr[T]]
   )(
     implicit E: EntityEncoder[F, T],

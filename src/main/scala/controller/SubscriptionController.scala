@@ -1,8 +1,8 @@
 package controller
 
-import cats.effect.kernel.Concurrent
+import cats.effect.Sync
 import cats.implicits._
-import domain.user.{ReadAuthorizedUser, Role}
+import domain.user.{AuthorizedUserDomain, Role}
 import dto.subscription.{CategorySubscriptionDto, SupplierSubscriptionDto}
 import io.circe.generic.auto._
 import org.http4s.AuthedRoutes
@@ -13,14 +13,14 @@ import service.error.user.UserError.InvalidUserRole
 import util.ResponseHandlingUtil.marshalResponse
 
 object SubscriptionController {
-  def authedRoutes[F[_]: Concurrent](
+  def authedRoutes[F[_]: Sync](
     subscriptionService: SubscriptionService[F]
   )(
     implicit dsl: Http4sDsl[F]
-  ): AuthedRoutes[ReadAuthorizedUser, F] = {
+  ): AuthedRoutes[AuthorizedUserDomain, F] = {
     import dsl._
 
-    def subscribeSupplier(): AuthedRoutes[ReadAuthorizedUser, F] = AuthedRoutes.of[ReadAuthorizedUser, F] {
+    def subscribeSupplier(): AuthedRoutes[AuthorizedUserDomain, F] = AuthedRoutes.of[AuthorizedUserDomain, F] {
       case req @ POST -> Root / "api" / "subscription" / "supplier" as user if user.role == Role.Client =>
         val res = for {
           supplier <- req.req.as[SupplierSubscriptionDto]
@@ -33,7 +33,7 @@ object SubscriptionController {
         Forbidden(InvalidUserRole(user.role, List(Role.Client)).message)
     }
 
-    def subscribeCategory(): AuthedRoutes[ReadAuthorizedUser, F] = AuthedRoutes.of[ReadAuthorizedUser, F] {
+    def subscribeCategory(): AuthedRoutes[AuthorizedUserDomain, F] = AuthedRoutes.of[AuthorizedUserDomain, F] {
       case req @ POST -> Root / "api" / "subscription" / "category" as user if user.role == Role.Client =>
         val res = for {
           category <- req.req.as[CategorySubscriptionDto]
@@ -42,11 +42,11 @@ object SubscriptionController {
 
         marshalResponse(res)
 
-      case req @ POST -> Root / "api" / "subscription" / "category" as user =>
+      case POST -> Root / "api" / "subscription" / "category" as user =>
         Forbidden(InvalidUserRole(user.role, List(Role.Client)).message)
     }
 
-    def removeSupplierSubscription(): AuthedRoutes[ReadAuthorizedUser, F] = AuthedRoutes.of[ReadAuthorizedUser, F] {
+    def removeSupplierSubscription(): AuthedRoutes[AuthorizedUserDomain, F] = AuthedRoutes.of[AuthorizedUserDomain, F] {
       case req @ DELETE -> Root / "api" / "subscription" / "supplier" as user if user.role == Role.Client =>
         val res = for {
           supplier <- req.req.as[SupplierSubscriptionDto]
@@ -55,11 +55,11 @@ object SubscriptionController {
 
         marshalResponse(res)
 
-      case req @ DELETE -> Root / "api" / "subscription" / "supplier" as user =>
+      case DELETE -> Root / "api" / "subscription" / "supplier" as user =>
         Forbidden(InvalidUserRole(user.role, List(Role.Client)).message)
     }
 
-    def removeCategorySubscription(): AuthedRoutes[ReadAuthorizedUser, F] = AuthedRoutes.of[ReadAuthorizedUser, F] {
+    def removeCategorySubscription(): AuthedRoutes[AuthorizedUserDomain, F] = AuthedRoutes.of[AuthorizedUserDomain, F] {
       case req @ DELETE -> Root / "api" / "subscription" / "category" as user if user.role == Role.Client =>
         val res = for {
           category <- req.req.as[CategorySubscriptionDto]
@@ -68,11 +68,11 @@ object SubscriptionController {
 
         marshalResponse(res)
 
-      case req @ DELETE -> Root / "api" / "subscription" / "category" as user =>
+      case DELETE -> Root / "api" / "subscription" / "category" as user =>
         Forbidden(InvalidUserRole(user.role, List(Role.Client)).message)
     }
 
-    def viewSupplierSubscription(): AuthedRoutes[ReadAuthorizedUser, F] = AuthedRoutes.of[ReadAuthorizedUser, F] {
+    def viewSupplierSubscription(): AuthedRoutes[AuthorizedUserDomain, F] = AuthedRoutes.of[AuthorizedUserDomain, F] {
       case GET -> Root / "api" / "subscription" / "supplier" as user if user.role == Role.Client =>
         for {
           result <- Ok(subscriptionService.getSupplierSubscriptions(user))
@@ -82,7 +82,7 @@ object SubscriptionController {
         Forbidden(InvalidUserRole(user.role, List(Role.Client)).message)
     }
 
-    def viewCategorySubscription(): AuthedRoutes[ReadAuthorizedUser, F] = AuthedRoutes.of[ReadAuthorizedUser, F] {
+    def viewCategorySubscription(): AuthedRoutes[AuthorizedUserDomain, F] = AuthedRoutes.of[AuthorizedUserDomain, F] {
       case GET -> Root / "api" / "subscription" / "category" as user if user.role == Role.Client =>
         for {
           result <- Ok(subscriptionService.getCategorySubscriptions(user))

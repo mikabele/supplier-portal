@@ -1,25 +1,23 @@
 package service
 
-import cats.effect.kernel.Sync
+import cats.effect.Sync
 import domain.category.Category
-import domain.user.ReadAuthorizedUser
+import domain.user.AuthorizedUserDomain
 import dto.subscription._
 import dto.supplier.SupplierDto
 import repository.{SubscriptionRepository, SupplierRepository}
 import service.impl.SubscriptionServiceImpl
 import util.ConvertToErrorsUtil.ErrorsOr
 
-import java.util.UUID
-
 // TODO - add sheduler
 
 trait SubscriptionService[F[_]] {
-  def getCategorySubscriptions(user:   ReadAuthorizedUser):             F[List[Category]]
-  def getSupplierSubscriptions(user:   ReadAuthorizedUser): F[List[SupplierDto]]
-  def removeCategorySubscription(user: ReadAuthorizedUser, category: CategorySubscriptionDto): F[ErrorsOr[Int]]
-  def removeSupplierSubscription(user: ReadAuthorizedUser, supplier:    SupplierSubscriptionDto): F[ErrorsOr[Int]]
-  def subscribeCategory(user:          ReadAuthorizedUser, categoryDto: CategorySubscriptionDto): F[ErrorsOr[Int]]
-  def subscribeSupplier(user:          ReadAuthorizedUser, supplierDto: SupplierSubscriptionDto): F[ErrorsOr[Int]]
+  def getCategorySubscriptions(user:   AuthorizedUserDomain):             F[List[Category]]
+  def getSupplierSubscriptions(user:   AuthorizedUserDomain): F[List[SupplierDto]]
+  def removeCategorySubscription(user: AuthorizedUserDomain, category: CategorySubscriptionDto): F[ErrorsOr[Int]]
+  def removeSupplierSubscription(user: AuthorizedUserDomain, supplier:    SupplierSubscriptionDto): F[ErrorsOr[Int]]
+  def subscribeCategory(user:          AuthorizedUserDomain, categoryDto: CategorySubscriptionDto): F[ErrorsOr[Int]]
+  def subscribeSupplier(user:          AuthorizedUserDomain, supplierDto: SupplierSubscriptionDto): F[ErrorsOr[Int]]
 }
 
 object SubscriptionService {

@@ -27,12 +27,12 @@ object user {
       pgEnumString("user_role", Role.withName, _.entryName)
   }
 
-  final case class NonAuthorizedUser(
+  final case class NonAuthorizedUserDomain(
     login:    NonEmptyStr,
     password: NonEmptyStr,
   )
 
-  final case class ReadAuthorizedUser(
+  final case class AuthorizedUserDomain(
     id:      UuidStr,
     name:    NonEmptyStr,
     surname: NonEmptyStr,

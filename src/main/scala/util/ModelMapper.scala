@@ -10,7 +10,7 @@ import domain.order._
 import domain.product._
 import domain.subscription.{CategorySubscriptionDomain, SupplierSubscriptionDomain}
 import domain.supplier.SupplierDomain
-import domain.user.{NonAuthorizedUser, ReadAuthorizedUser}
+import domain.user.{AuthorizedUserDomain, NonAuthorizedUserDomain}
 import dto.attachment._
 import dto.criteria.CriteriaDto
 import dto.delivery.{DeliveryCreateDto, DeliveryReadDto}
@@ -19,7 +19,7 @@ import dto.order.{OrderCreateDto, OrderProductDto, OrderReadDto, OrderUpdateDto}
 import dto.product._
 import dto.subscription.{CategorySubscriptionDto, SupplierSubscriptionDto}
 import dto.supplier.SupplierDto
-import dto.user.{NonAuthorizedUserDto, ReadAuthorizedUserDto}
+import dto.user.{AuthorizedUserDto, NonAuthorizedUserDto}
 import service.error.general.GeneralError
 import service.error.group.ProductGroupError.{DuplicatedProductInGroup, DuplicatedUserInGroup, EmptyGroup}
 import types._
@@ -35,8 +35,8 @@ object ModelMapper {
       GroupReadDto(domain.id.value, domain.name.value, domain.userIds.map(_.value), domain.productIds.map(_.value))
     }
 
-    def readAuthorizedUserDomainToDto(user: ReadAuthorizedUser): ReadAuthorizedUserDto = {
-      ReadAuthorizedUserDto(
+    def readAuthorizedUserDomainToDto(user: AuthorizedUserDomain): AuthorizedUserDto = {
+      AuthorizedUserDto(
         user.id.value,
         user.name.value,
         user.surname.value,
@@ -108,7 +108,7 @@ object ModelMapper {
         product.price.value,
         product.description,
         product.status,
-        product.publicationPeriod.value,
+        product.publicationDate.value,
         product.attachments.map(readAttachmentDomainToDto)
       )
     }
@@ -135,13 +135,13 @@ object ModelMapper {
 
   object DtoToDomain {
 
-    def validateUserDto(dto: NonAuthorizedUserDto): ValidatedNec[GeneralError, NonAuthorizedUser] = {
+    def validateUserDto(dto: NonAuthorizedUserDto): ValidatedNec[GeneralError, NonAuthorizedUserDomain] = {
       val login:    ValidatedNec[GeneralError, NonEmptyStr] = refinedValidation(dto.login)
       val password: ValidatedNec[GeneralError, NonEmptyStr] = refinedValidation(dto.password)
       (
         login,
         password
-      ).mapN(NonAuthorizedUser)
+      ).mapN(NonAuthorizedUserDomain)
     }
 
     def validateCreateDeliveryDto(dto: DeliveryCreateDto): ValidatedNec[GeneralError, DeliveryCreateDomain] = {
@@ -257,8 +257,8 @@ object ModelMapper {
     }
 
     def validateCriteriaDto(dto: CriteriaDto): ValidatedNec[GeneralError, CriteriaDomain] = {
-      val startDate: ValidatedNec[GeneralError, Option[DateStr]] = dto.startDate.traverse(p => refinedValidation(p))
-      val endDate:   ValidatedNec[GeneralError, Option[DateStr]] = dto.endDate.traverse(p => refinedValidation(p))
+      val startDate: ValidatedNec[GeneralError, Option[DateTimeStr]] = dto.startDate.traverse(p => refinedValidation(p))
+      val endDate:   ValidatedNec[GeneralError, Option[DateTimeStr]] = dto.endDate.traverse(p => refinedValidation(p))
       val minPrice: ValidatedNec[GeneralError, Option[NonNegativeFloat]] =
         dto.minPrice.traverse(p => refinedValidation(p))
       val maxPrice: ValidatedNec[GeneralError, Option[NonNegativeFloat]] =
@@ -354,7 +354,7 @@ object ModelMapper {
           product.price,
           product.description,
           product.status,
-          product.publicationPeriod,
+          product.publicationDate,
           attachments.filter(_.productId == product.id)
         )
       )
