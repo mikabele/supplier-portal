@@ -5,11 +5,10 @@ import domain.category.Category
 import domain.user.AuthorizedUserDomain
 import dto.subscription._
 import dto.supplier.SupplierDto
+import logger.LogHandler
 import repository.{SubscriptionRepository, SupplierRepository}
 import service.impl.SubscriptionServiceImpl
 import util.ConvertToErrorsUtil.ErrorsOr
-
-// TODO - add sheduler
 
 trait SubscriptionService[F[_]] {
   def getCategorySubscriptions(user:   AuthorizedUserDomain):             F[List[Category]]
@@ -23,8 +22,9 @@ trait SubscriptionService[F[_]] {
 object SubscriptionService {
   def of[F[_]: Sync](
     subscriptionRepository: SubscriptionRepository[F],
-    supplierRepository:     SupplierRepository[F]
+    supplierRepository:     SupplierRepository[F],
+    logHandler:             LogHandler[F]
   ): SubscriptionService[F] = {
-    new SubscriptionServiceImpl[F](subscriptionRepository, supplierRepository)
+    new SubscriptionServiceImpl[F](subscriptionRepository, supplierRepository, logHandler)
   }
 }

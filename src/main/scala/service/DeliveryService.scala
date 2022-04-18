@@ -3,6 +3,7 @@ package service
 import cats.effect.Sync
 import domain.user.AuthorizedUserDomain
 import dto.delivery.{DeliveryCreateDto, DeliveryReadDto}
+import logger.LogHandler
 import repository.{DeliveryRepository, OrderRepository}
 import service.impl.DeliveryServiceImpl
 import util.ConvertToErrorsUtil.ErrorsOr
@@ -19,8 +20,9 @@ trait DeliveryService[F[_]] {
 object DeliveryService {
   def of[F[_]: Sync](
     deliveryRepository: DeliveryRepository[F],
-    orderRepository:    OrderRepository[F]
+    orderRepository:    OrderRepository[F],
+    logHandler:         LogHandler[F]
   ): DeliveryService[F] = {
-    new DeliveryServiceImpl[F](deliveryRepository, orderRepository)
+    new DeliveryServiceImpl[F](deliveryRepository, orderRepository, logHandler)
   }
 }

@@ -7,6 +7,8 @@ import conf.app._
 import conf.db._
 import controller._
 import domain.user.AuthorizedUserDomain
+import logger.LogHandler
+import org.apache.logging.log4j.LogManager
 import org.http4s.dsl.Http4sDsl
 import org.http4s.implicits.http4sKleisliResponseSyntaxOptionT
 import org.http4s.server.AuthMiddleware
@@ -30,24 +32,35 @@ object AppContext {
       productRepository      = ProductRepository.of(tx)
       orderRepository        = OrderRepository.of(tx)
       subscriptionRepository = SubscriptionRepository.of(tx)
+      logger                 = LogManager.getLogger("root")
+      logHandler = LogHandler.of(
+        (s: String) => logger.info(s).pure[F],
+        (s: String) => logger.debug(s).pure[F],
+        (s: String) => logger.error(s).pure[F]
+      )
 
-      authenticationService = AuthenticationService.of(userRepository)
+      authenticationService = AuthenticationService.of(userRepository, logHandler)
       authenticationRoutes  = AuthenticationController.routes(authenticationService)
 
-      productGroupService      = ProductGroupService.of(productGroupRepository, userRepository, productRepository)
+      productGroupService = ProductGroupService.of(
+        productGroupRepository,
+        userRepository,
+        productRepository,
+        logHandler
+      )
       productGroupAuthedRoutes = ProductGroupController.authedRoutes(productGroupService)
 
-      productService      = ProductService.of(productRepository, supplierRepository, orderRepository)
+      productService      = ProductService.of(productRepository, supplierRepository, orderRepository, logHandler)
       productAuthedRoutes = ProductController.authedRoutes[F](productService)
 
-      subscriptionService      = SubscriptionService.of[F](subscriptionRepository, supplierRepository)
+      subscriptionService      = SubscriptionService.of[F](subscriptionRepository, supplierRepository, logHandler)
       subscriptionAuthedRoutes = SubscriptionController.authedRoutes[F](subscriptionService)
 
-      orderService      = OrderService.of(orderRepository, productRepository)
+      orderService      = OrderService.of(orderRepository, productRepository, logHandler)
       orderAuthedRoutes = OrderController.authedRoutes(orderService)
 
       deliveryRepository   = DeliveryRepository.of(tx)
-      deliveryService      = DeliveryService.of(deliveryRepository, orderRepository)
+      deliveryService      = DeliveryService.of(deliveryRepository, orderRepository, logHandler)
       deliveryAuthedRoutes = DeliveryController.authedRoutes(deliveryService)
 
       authUser = Kleisli(authenticationService.retrieveUser): Kleisli[

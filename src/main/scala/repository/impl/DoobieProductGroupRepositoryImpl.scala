@@ -25,6 +25,7 @@ class DoobieProductGroupRepositoryImpl[F[_]: Sync](tx: Transactor[F]) extends Pr
   private val addUsersQuery            = fr"INSERT INTO group_to_user(group_id,user_id) SELECT "
   private val deleteUsersQuery         = fr"DELETE FROM group_to_user "
   private val deleteProductsQuery      = fr"DELETE FROM group_to_product "
+  private val getByNameQuery           = fr"SELECT 1 WHERE EXISTS ( SELECT * FROM public.group "
 
   override def addProducts(domain: GroupWithProductsDomain): F[Int] = {
     (addProductsQuery ++ fr"${domain.id}::UUID,unnest(${domain.productIds.map(_.value).toList}::UUID[])").update.run
@@ -83,4 +84,9 @@ class DoobieProductGroupRepositoryImpl[F[_]: Sync](tx: Transactor[F]) extends Pr
         .transact(tx)
     } yield group.map(g => GroupReadDomain(g.id, g.name, users.map(_.userId), products.map(_.productId)))
   }
+
+  override def checkByName(name: String): F[Option[Int]] = {
+    (getByNameQuery ++ fr" WHERE name = $name)").query[Int].option.transact(tx)
+  }
+
 }

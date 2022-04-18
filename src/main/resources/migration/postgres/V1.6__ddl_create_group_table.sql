@@ -2,7 +2,7 @@ DROP TABLE IF EXISTS "group" CASCADE ;
 CREATE TABLE "group"
 (
     id UUID DEFAULT gen_random_uuid(),
-    name VARCHAR(50) NOT NULL,
+    name VARCHAR(50) NOT NULL UNIQUE ,
     PRIMARY KEY (id)
 );
 

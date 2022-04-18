@@ -36,5 +36,8 @@ object group {
       override def message: String = s"Product with $id is already in the group"
     }
 
+    final case object GroupExists extends BadRequestError {
+      override def message: String = s"Product group already exists"
+    }
   }
 }

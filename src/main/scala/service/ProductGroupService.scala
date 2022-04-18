@@ -2,6 +2,7 @@ package service
 
 import cats.effect.Sync
 import dto.group._
+import logger.LogHandler
 import repository.{ProductGroupRepository, ProductRepository, UserRepository}
 import service.impl.ProductGroupServiceImpl
 import util.ConvertToErrorsUtil.ErrorsOr
@@ -29,8 +30,9 @@ object ProductGroupService {
   def of[F[_]: Sync](
     productGroupRepository: ProductGroupRepository[F],
     userRepository:         UserRepository[F],
-    productRepository:      ProductRepository[F]
+    productRepository:      ProductRepository[F],
+    logHandler:             LogHandler[F]
   ): ProductGroupService[F] = {
-    new ProductGroupServiceImpl[F](productGroupRepository, userRepository, productRepository)
+    new ProductGroupServiceImpl[F](productGroupRepository, userRepository, productRepository, logHandler)
   }
 }

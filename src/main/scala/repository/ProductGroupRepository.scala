@@ -23,6 +23,8 @@ trait ProductGroupRepository[F[_]] {
   def showGroups(): F[List[GroupReadDomain]]
 
   def getById(id: UUID): F[Option[GroupReadDomain]]
+
+  def checkByName(name: String): F[Option[Int]] //technical method
 }
 
 object ProductGroupRepository {

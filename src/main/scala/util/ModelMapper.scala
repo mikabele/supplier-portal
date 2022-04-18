@@ -26,8 +26,6 @@ import types._
 import util.RefinedValidator.refinedValidation
 
 object ModelMapper {
-  // TODO - find out how to make isomorphism between Dto and Domain (refined supported)
-  // TODO - try to use circe-refined module and refined types in DTO
 
   object DomainToDto {
 

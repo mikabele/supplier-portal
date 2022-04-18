@@ -3,6 +3,7 @@ package service
 import cats.effect.Sync
 import domain.user.AuthorizedUserDomain
 import dto.user.NonAuthorizedUserDto
+import logger.LogHandler
 import org.http4s.Request
 import repository.UserRepository
 import service.impl.AuthenticationServiceImpl
@@ -15,7 +16,7 @@ trait AuthenticationService[F[_]] {
 }
 
 object AuthenticationService {
-  def of[F[_]: Sync](userRepository: UserRepository[F]): AuthenticationService[F] = {
-    new AuthenticationServiceImpl[F](userRepository)
+  def of[F[_]: Sync](userRepository: UserRepository[F], logHandler: LogHandler[F]): AuthenticationService[F] = {
+    new AuthenticationServiceImpl[F](userRepository, logHandler)
   }
 }

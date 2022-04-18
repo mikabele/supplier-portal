@@ -163,9 +163,9 @@ class DoobieProductRepositoryImpl[F[_]: Sync](tx: Transactor[F]) extends Product
     for {
       products <- (getProductsQuery ++
         findUserInGroupQuery ++ fr" WHERE user_id = ${user.id}::UUID))" ++ fr" AND p.status IN ('available'::product_status,'not_available'::product_status) "
-        ++ fr" AND (p.category_id IN (SELECT category_id FROM category_subscription WHERE user_id = ${user.id}::UUID) " ++
-        fr"OR p.supplier_id IN (SELECT supplier_id FROM supplier_subscription WHERE user_id = ${user.id}::UUID)) " ++
-        fr"AND p.publication_date >= (SELECT last_date FROM last_notification)")
+        ++ fr" AND (p.category_id IN (SELECT category_id FROM category_subscription WHERE user_id = ${user.id}::UUID) "
+        ++ fr"OR p.supplier_id IN (SELECT supplier_id FROM supplier_subscription WHERE user_id = ${user.id}::UUID)) "
+        ++ fr"AND p.publication_date >= (SELECT last_date FROM last_notification)")
         .query[ProductReadDbDomain]
         .to[List]
         .transact(tx)

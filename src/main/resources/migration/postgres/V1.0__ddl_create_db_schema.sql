@@ -39,8 +39,9 @@ DROP TABLE IF EXISTS attachment CASCADE;
 CREATE TABLE attachment
 (
   id UUID DEFAULT gen_random_uuid(),
-  attachment VARCHAR(256) NOT NULL UNIQUE ,
+  attachment VARCHAR(256) NOT NULL ,
   product_id UUID NOT NULL,
   PRIMARY KEY(id),
-  CONSTRAINT product_fk FOREIGN KEY (product_id) REFERENCES product(id)
+  CONSTRAINT product_fk FOREIGN KEY (product_id) REFERENCES product(id),
+  CONSTRAINT unique_attachment UNIQUE (attachment,product_id)
 );

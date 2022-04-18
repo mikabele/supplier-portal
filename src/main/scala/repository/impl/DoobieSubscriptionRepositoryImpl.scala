@@ -23,7 +23,7 @@ class DoobieSubscriptionRepositoryImpl[F[_]: Sync](tx: Transactor[F]) extends Su
   private val getSupplierSubQuery =
     fr"SELECT s.id,s.name,s.address FROM supplier AS s INNER JOIN supplier_subscription AS ss ON s.id=ss.supplier_id "
 
-  private val updateLastNotificationDateQuery = fr"UPDATE last_notification SET last_date = CURRENT_DATE"
+  private val updateLastNotificationDateQuery = fr"UPDATE last_notification SET last_date = CURRENT_TIMESTAMP"
 
   override def subscribeCategory(user: AuthorizedUserDomain, category: CategorySubscriptionDomain): F[Int] = {
     (subscribeCategoryQuery ++ fr"(${category.category}, ${user.id}::UUID)").update.run
