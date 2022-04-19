@@ -1,16 +1,16 @@
 package util
 
 import cats.data.Chain
-import cats.effect.Sync
+import cats.effect.Concurrent
 import cats.syntax.all._
+import error.general.{BadRequestError, ForbiddenError, GeneralError, NotFoundError}
 import org.http4s.circe.CirceEntityCodec.circeEntityEncoder
 import org.http4s.dsl.Http4sDsl
 import org.http4s.{EntityEncoder, InvalidMessageBodyFailure, Response}
-import service.error.general._
 import util.ConvertToErrorsUtil.ErrorsOr
 
 object ResponseHandlingUtil {
-  def errorsToHttpResponse[F[_]: Sync](
+  def errorsToHttpResponse[F[_]: Concurrent](
     errors: Chain[GeneralError]
   )(
     implicit dsl: Http4sDsl[F]
@@ -21,12 +21,11 @@ object ResponseHandlingUtil {
       case _: BadRequestError => BadRequest(errorsString)
       case _: NotFoundError   => NotFound(errorsString)
       case _: ForbiddenError  => Forbidden(errorsString)
-      //case _: UnauthorizedError => Unauthorized.apply(errorsString)
       case _ => BadRequest(errorsString)
     }
   }
 
-  def marshalResponse[T, F[_]: Sync](
+  def marshalResponse[T, F[_]: Concurrent](
     result: F[ErrorsOr[T]]
   )(
     implicit E: EntityEncoder[F, T],

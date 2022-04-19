@@ -3,18 +3,19 @@ package service.impl
 import cats.Monad
 import cats.data.{Chain, EitherT}
 import cats.syntax.all._
-import dto.group._
+import dto.group.{GroupCreateDto, GroupReadDto, GroupWithProductsDto, GroupWithUsersDto}
+import error.general.GeneralError
+import error.group.ProductGroupError.{GroupExists, ProductAlreadyInGroup, ProductGroupNotFound, ProductIsNotInGroup, UserAlreadyInGroup, UserIsNotInGroup}
+import error.product.ProductError.ProductNotFound
+import error.user.UserError.UserNotFound
 import logger.LogHandler
 import repository.{ProductGroupRepository, ProductRepository, UserRepository}
 import service.ProductGroupService
-import service.error.general.GeneralError
-import service.error.group.ProductGroupError._
-import service.error.product.ProductError.ProductNotFound
-import service.error.user.UserError.UserNotFound
-import util.ConvertToErrorsUtil.{ErrorsOr, ToErrorsOrSyntax}
-import util.ConvertToErrorsUtil.instances.{fromF, fromValidatedNec}
-import util.ModelMapper.DomainToDto._
-import util.ModelMapper.DtoToDomain._
+import util.ConvertToErrorsUtil.ErrorsOr
+import util.ModelMapper.DomainToDto.readProductGroupDomainToDto
+import util.ConvertToErrorsUtil._
+import util.ConvertToErrorsUtil.instances._
+import util.ModelMapper.DtoToDomain.{validateCreateProductGroupDto, validateProductGroupWithProductsDto, validateProductGroupWithUsersDto}
 
 import java.util.UUID
 

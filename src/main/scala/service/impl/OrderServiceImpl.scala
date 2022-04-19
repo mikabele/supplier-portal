@@ -6,16 +6,16 @@ import cats.syntax.all._
 import domain.order.OrderStatus
 import domain.product.ProductStatus
 import domain.user.AuthorizedUserDomain
-import dto.order._
+import dto.order.{OrderCreateDto, OrderReadDto}
+import error.general.GeneralError
+import error.order.OrderError.{OrderNotFound, ProductIsNotAvailable}
 import logger.LogHandler
 import repository.{OrderRepository, ProductRepository}
 import service.OrderService
-import service.error.general.GeneralError
-import service.error.order.OrderError._
+import util.ConvertToErrorsUtil.instances._
 import util.ConvertToErrorsUtil._
-import util.ConvertToErrorsUtil.instances.{fromF, fromValidatedNec}
-import util.ModelMapper.DomainToDto._
-import util.ModelMapper.DtoToDomain._
+import util.ModelMapper.DomainToDto.readOrderDomainToDto
+import util.ModelMapper.DtoToDomain.validateCreateOrderDto
 import util.UpdateOrderStatusRule.checkCurrentStatus
 
 import java.util.UUID

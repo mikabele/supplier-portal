@@ -2,7 +2,7 @@ package service
 
 import cats.effect.Sync
 import domain.user.AuthorizedUserDomain
-import dto.order._
+import dto.order.{OrderCreateDto, OrderReadDto}
 import logger.LogHandler
 import repository.{OrderRepository, ProductRepository}
 import service.impl.OrderServiceImpl

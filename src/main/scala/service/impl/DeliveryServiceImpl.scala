@@ -6,17 +6,18 @@ import cats.syntax.all._
 import domain.order.OrderStatus
 import domain.user.AuthorizedUserDomain
 import dto.delivery.{DeliveryCreateDto, DeliveryReadDto}
+import error.delivery.DeliveryError.InvalidDeliveryCourier
+import error.general.GeneralError
+import error.order.OrderError.OrderNotFound
 import logger.LogHandler
 import repository.{DeliveryRepository, OrderRepository}
 import service.DeliveryService
-import service.error.delivery.DeliveryError.InvalidDeliveryCourier
-import service.error.general.GeneralError
-import service.error.order.OrderError.OrderNotFound
-import util.ConvertToErrorsUtil._
-import util.ConvertToErrorsUtil.instances.{fromF, fromValidatedNec}
-import util.ModelMapper.DomainToDto._
-import util.ModelMapper.DtoToDomain._
+import util.ConvertToErrorsUtil.ErrorsOr
+import util.ModelMapper.DomainToDto.readDeliveryDomainToDto
 import util.UpdateOrderStatusRule.checkCurrentStatus
+import util.ConvertToErrorsUtil._
+import util.ConvertToErrorsUtil.instances._
+import util.ModelMapper.DtoToDomain.validateCreateDeliveryDto
 
 import java.util.UUID
 

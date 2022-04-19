@@ -1,7 +1,7 @@
 package service
 
 import cats.effect.Sync
-import dto.group._
+import dto.group.{GroupCreateDto, GroupReadDto, GroupWithProductsDto, GroupWithUsersDto}
 import logger.LogHandler
 import repository.{ProductGroupRepository, ProductRepository, UserRepository}
 import service.impl.ProductGroupServiceImpl

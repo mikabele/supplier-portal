@@ -3,20 +3,20 @@ package service.impl
 import cats.Monad
 import cats.data.{Chain, EitherT}
 import cats.syntax.all._
-import domain.category._
+import domain.category.Category
 import domain.user.AuthorizedUserDomain
-import dto.subscription._
-import dto.supplier._
+import dto.subscription.{CategorySubscriptionDto, SupplierSubscriptionDto}
+import dto.supplier.SupplierDto
+import error.general.GeneralError
+import error.subscription.SubscriptionError.{SubscriptionExists, SubscriptionNotExists}
+import error.supplier.SupplierError.SupplierNotFound
 import logger.LogHandler
 import repository.{SubscriptionRepository, SupplierRepository}
 import service.SubscriptionService
-import service.error.general.GeneralError
-import service.error.subscription.SubscriptionError.{SubscriptionExists, SubscriptionNotExists}
-import service.error.supplier.SupplierError.SupplierNotFound
-import util.ConvertToErrorsUtil.instances.{fromF, fromValidatedNec}
 import util.ConvertToErrorsUtil._
-import util.ModelMapper.DomainToDto._
-import util.ModelMapper.DtoToDomain._
+import util.ConvertToErrorsUtil.instances._
+import util.ModelMapper.DomainToDto.supplierDomainToDto
+import util.ModelMapper.DtoToDomain.{validateCategorySubscriptionDto, validateSupplierSubscriptionDto}
 
 class SubscriptionServiceImpl[F[_]: Monad](
   subscriptionRepository: SubscriptionRepository[F],

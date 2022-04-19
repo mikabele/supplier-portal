@@ -1,19 +1,19 @@
 package controller
 
-import cats.effect.Sync
+import cats.effect.Concurrent
 import cats.implicits._
 import domain.user.{AuthorizedUserDomain, Role}
 import dto.subscription.{CategorySubscriptionDto, SupplierSubscriptionDto}
+import error.user.UserError.InvalidUserRole
 import io.circe.generic.auto._
 import org.http4s.AuthedRoutes
 import org.http4s.circe.CirceEntityCodec.{circeEntityDecoder, circeEntityEncoder}
 import org.http4s.dsl.Http4sDsl
 import service.SubscriptionService
-import service.error.user.UserError.InvalidUserRole
 import util.ResponseHandlingUtil.marshalResponse
 
 object SubscriptionController {
-  def authedRoutes[F[_]: Sync](
+  def authedRoutes[F[_]: Concurrent](
     subscriptionService: SubscriptionService[F]
   )(
     implicit dsl: Http4sDsl[F]

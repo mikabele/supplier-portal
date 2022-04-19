@@ -1,19 +1,20 @@
 package controller
 
 import cats.effect.Sync
+import cats.effect.Concurrent
 import cats.syntax.all._
 import domain.user.{AuthorizedUserDomain, Role}
 import dto.delivery.DeliveryCreateDto
+import error.user.UserError.InvalidUserRole
 import io.circe.generic.auto._
 import org.http4s.AuthedRoutes
 import org.http4s.circe.CirceEntityCodec.{circeEntityDecoder, circeEntityEncoder}
 import org.http4s.dsl.Http4sDsl
 import service.DeliveryService
-import service.error.user.UserError.InvalidUserRole
 import util.ResponseHandlingUtil.marshalResponse
 
 object DeliveryController {
-  def authedRoutes[F[_]: Sync](
+  def authedRoutes[F[_]: Concurrent](
     deliveryService: DeliveryService[F]
   )(
     implicit dsl: Http4sDsl[F]

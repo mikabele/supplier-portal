@@ -3,7 +3,7 @@ package service
 import cats.effect.Sync
 import domain.category.Category
 import domain.user.AuthorizedUserDomain
-import dto.subscription._
+import dto.subscription.{CategorySubscriptionDto, SupplierSubscriptionDto}
 import dto.supplier.SupplierDto
 import logger.LogHandler
 import repository.{SubscriptionRepository, SupplierRepository}

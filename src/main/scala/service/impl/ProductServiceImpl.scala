@@ -5,20 +5,20 @@ import cats.data.{Chain, EitherT, NonEmptyList}
 import cats.syntax.all._
 import domain.product.ProductStatus
 import domain.user.AuthorizedUserDomain
-import dto.attachment._
+import dto.attachment.AttachmentCreateDto
 import dto.criteria.CriteriaDto
-import dto.product._
+import dto.product.{ProductCreateDto, ProductReadDto, ProductUpdateDto}
+import error.attachment.AttachmentError.{AttachmentExists, AttachmentNotFound}
+import error.general.GeneralError
+import error.product.ProductError.{DeclineDeleteProduct, ProductExists, ProductNotFound}
+import error.supplier.SupplierError.SupplierNotFound
 import logger.LogHandler
 import repository.{OrderRepository, ProductRepository, SupplierRepository}
 import service.ProductService
-import service.error.attachment.AttachmentError.{AttachmentExists, AttachmentNotFound}
-import service.error.general.GeneralError
-import service.error.product.ProductError.{DeclineDeleteProduct, ProductExists, ProductNotFound}
-import service.error.supplier.SupplierError.SupplierNotFound
 import util.ConvertToErrorsUtil._
-import util.ConvertToErrorsUtil.instances.{fromF, fromValidatedNec}
-import util.ModelMapper.DomainToDto._
-import util.ModelMapper.DtoToDomain._
+import util.ConvertToErrorsUtil.instances._
+import util.ModelMapper.DomainToDto.{readProductDomainToDto, updateProductDomainToDto}
+import util.ModelMapper.DtoToDomain.{validateAttachmentDto, validateCreateProductDto, validateCriteriaDto, validateUpdateProductDto}
 
 import java.util.UUID
 
