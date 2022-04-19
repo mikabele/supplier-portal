@@ -2,18 +2,18 @@ package service.impl
 
 import cats.Monad
 import cats.data.{Chain, EitherT, NonEmptyList}
-import domain.user._
+import domain.user.AuthorizedUserDomain
 import dto.user.NonAuthorizedUserDto
+import error.general.GeneralError
+import error.user.UserError._
 import logger.LogHandler
 import org.http4s.{headers, Request}
 import org.reactormonk.{CryptoBits, PrivateKey}
 import repository.UserRepository
 import service.AuthenticationService
-import service.error.general.GeneralError
-import service.error.user.UserError.{InvalidUserOrPassword, UserNotFound}
-import util.ConvertToErrorsUtil.instances.{fromF, fromValidatedNec}
-import util.ConvertToErrorsUtil.{ErrorsOr, _}
-import util.ModelMapper.DtoToDomain._
+import util.ConvertToErrorsUtil._
+import util.ConvertToErrorsUtil.instances._
+import util.ModelMapper.DtoToDomain.validateUserDto
 
 import scala.io.Codec
 import scala.util.Random

@@ -20,15 +20,13 @@ import org.http4s.dsl.io._
 import org.http4s.implicits._
 import org.http4s.{Request, ResponseCookie}
 import org.scalatest.funspec.AnyFunSpec
-
+import scala.concurrent.ExecutionContext.Implicits.global
 import java.time.LocalDateTime
 import java.time.format.DateTimeFormatter
 import java.util.UUID
-import scala.concurrent.ExecutionContext.Implicits.global
 
 class ClientFunctionality extends AnyFunSpec {
   def clientResource[F[_]: Async: ConcurrentEffect]: Resource[F, Client[F]] = {
-    import scala.concurrent.ExecutionContext.Implicits.global
     BlazeClientBuilder[F](global).resource
   }
 

@@ -10,12 +10,12 @@ import dto.product.ProductCreateDto
 import dto.supplier.SupplierDto
 import dto.user.NonAuthorizedUserDto
 import io.circe.generic.auto._
-import org.http4s.{Request, ResponseCookie}
 import org.http4s.blaze.client._
 import org.http4s.circe.CirceEntityCodec.{circeEntityDecoder, circeEntityEncoder}
 import org.http4s.client.Client
 import org.http4s.dsl.io._
 import org.http4s.implicits._
+import org.http4s.{Request, ResponseCookie}
 import org.scalatest.funspec.AnyFunSpec
 
 import java.time.LocalDateTime
@@ -25,7 +25,6 @@ import scala.concurrent.ExecutionContext.Implicits.global
 
 class CourierFunctionality extends AnyFunSpec {
   def clientResource[F[_]: Async: ConcurrentEffect]: Resource[F, Client[F]] = {
-    import scala.concurrent.ExecutionContext.Implicits.global
     BlazeClientBuilder[F](global).resource
   }
 

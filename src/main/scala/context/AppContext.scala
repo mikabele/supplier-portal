@@ -1,10 +1,10 @@
 package context
 
 import cats.data.{Kleisli, OptionT}
-import cats.effect.{Async, ContextShift, Resource, Timer}
+import cats.effect.{Async, Concurrent, ContextShift, Resource}
 import cats.syntax.all._
-import conf.app._
-import conf.db._
+import conf.app.AppConf
+import conf.db.{migrator, transactor}
 import controller._
 import domain.user.AuthorizedUserDomain
 import logger.LogHandler
@@ -17,7 +17,8 @@ import repository._
 import service._
 
 object AppContext {
-  def setUp[F[_]: ContextShift: Async: Timer](conf: AppConf): Resource[F, HttpApp[F]] = {
+
+  def setUp[F[_]: Async: ContextShift: Concurrent](conf: AppConf): Resource[F, HttpApp[F]] = {
     implicit val dsl: Http4sDsl[F] = new Http4sDsl[F] {}
     import dsl._
     for {
@@ -32,7 +33,9 @@ object AppContext {
       productRepository      = ProductRepository.of(tx)
       orderRepository        = OrderRepository.of(tx)
       subscriptionRepository = SubscriptionRepository.of(tx)
-      logger                 = LogManager.getLogger("root")
+      deliveryRepository     = DeliveryRepository.of(tx)
+
+      logger = LogManager.getLogger("root")
       logHandler = LogHandler.of(
         (s: String) => logger.info(s).pure[F],
         (s: String) => logger.debug(s).pure[F],
@@ -59,7 +62,6 @@ object AppContext {
       orderService      = OrderService.of(orderRepository, productRepository, logHandler)
       orderAuthedRoutes = OrderController.authedRoutes(orderService)
 
-      deliveryRepository   = DeliveryRepository.of(tx)
       deliveryService      = DeliveryService.of(deliveryRepository, orderRepository, logHandler)
       deliveryAuthedRoutes = DeliveryController.authedRoutes(deliveryService)
 
