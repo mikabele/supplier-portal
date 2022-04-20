@@ -1,0 +1,58 @@
+version: "3.9"
+
+services:
+  #postgresql container
+  belevich_postgres14:
+    image: postgres:14-alpine
+    environment:
+      - POSTGRES_DB=supplier_portal
+      - POSTGRES_PASSWORD=admin
+      - POSTGRES_USER=postgres
+      - SERVICE_NAME=db
+      - SERVICE_5432_NAME=db
+    hostname: belevich_postgres14
+    container_name: belevich_postgres14
+    ports:
+      - "5432:54321"
+    healthcheck:
+      test: "pg_isready -h 127.0.0.1 -p 5432"
+      timeout: 10s
+      retries: 5
+
+  #server container
+  supplier_portal_server:
+    build:
+      context: .
+      dockerfile: sbt/Dockerfile
+    container_name: supplier_portal_server
+    links:
+      - belevich_postgres14
+    depends_on:
+      belevich_postgres14:
+        condition: service_healthy
+    expose:
+      - 8088
+    ports:
+      - "8088:8088"
+    volumes:
+      - ../.:/supplier_portal
+    working_dir: /supplier_portal
+    command: sbt run
+
+  #scheduler container
+  supplier_portal_scheduler:
+    build:
+      context: .
+      dockerfile: sbt/Dockerfile
+    container_name: supplier_portal_scheduler
+    links:
+      - belevich_postgres14
+    depends_on:
+      belevich_postgres14:
+        condition: service_healthy
+    volumes:
+      - ../common:/supplier_portal/common
+      - ../scheduler:/supplier_portal/scheduler
+      - ../log_files:/supplier_portal/scheduler/log_files
+    working_dir: /supplier_portal/scheduler
+    command: sbt run
