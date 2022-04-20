@@ -1,21 +1,24 @@
 package context
 
 import cats.data.{Kleisli, OptionT}
-import cats.effect.{Async, Resource}
-import cats.implicits.toSemigroupKOps
-import org.http4s.{HttpApp, Request}
-import conf.app._
-import conf.db._
+import cats.effect.{Async, Concurrent, ContextShift, Resource}
+import cats.syntax.all._
+import conf.app.AppConf
+import conf.db.{migrator, transactor}
 import controller._
-import domain.user.ReadAuthorizedUser
+import domain.user.AuthorizedUserDomain
+import logger.LogHandler
+import org.apache.logging.log4j.LogManager
 import org.http4s.dsl.Http4sDsl
-import repository._
-import org.http4s.AuthedRoutes
+import org.http4s.implicits.http4sKleisliResponseSyntaxOptionT
 import org.http4s.server.AuthMiddleware
+import org.http4s.{AuthedRoutes, HttpApp, Request}
+import repository._
 import service._
 
 object AppContext {
-  def setUp[F[_]: Async](conf: AppConf): Resource[F, HttpApp[F]] = {
+
+  def setUp[F[_]: Async: ContextShift: Concurrent](conf: AppConf): Resource[F, HttpApp[F]] = {
     implicit val dsl: Http4sDsl[F] = new Http4sDsl[F] {}
     import dsl._
     for {
@@ -29,28 +32,44 @@ object AppContext {
       productGroupRepository = ProductGroupRepository.of(tx)
       productRepository      = ProductRepository.of(tx)
       orderRepository        = OrderRepository.of(tx)
+      subscriptionRepository = SubscriptionRepository.of(tx)
+      deliveryRepository     = DeliveryRepository.of(tx)
 
-      authenticationService = AuthenticationService.of(userRepository)
+      logger = LogManager.getLogger("root")
+      logHandler = LogHandler.of(
+        (s: String) => logger.info(s).pure[F],
+        (s: String) => logger.debug(s).pure[F],
+        (s: String) => logger.error(s).pure[F]
+      )
+
+      authenticationService = AuthenticationService.of(userRepository, logHandler)
       authenticationRoutes  = AuthenticationController.routes(authenticationService)
 
-      productGroupService      = ProductGroupService.of(productGroupRepository, userRepository, productRepository)
+      productGroupService = ProductGroupService.of(
+        productGroupRepository,
+        userRepository,
+        productRepository,
+        logHandler
+      )
       productGroupAuthedRoutes = ProductGroupController.authedRoutes(productGroupService)
 
-      productService      = ProductService.of(productRepository, supplierRepository, orderRepository)
+      productService      = ProductService.of(productRepository, supplierRepository, orderRepository, logHandler)
       productAuthedRoutes = ProductController.authedRoutes[F](productService)
 
-      subscriptionRepository   = SubscriptionRepository.of(tx)
-      subscriptionService      = SubscriptionService.of[F](subscriptionRepository, supplierRepository)
+      subscriptionService      = SubscriptionService.of[F](subscriptionRepository, supplierRepository, logHandler)
       subscriptionAuthedRoutes = SubscriptionController.authedRoutes[F](subscriptionService)
 
-      orderService      = OrderService.of(orderRepository, productRepository)
+      orderService      = OrderService.of(orderRepository, productRepository, logHandler)
       orderAuthedRoutes = OrderController.authedRoutes(orderService)
 
-      deliveryRepository   = DeliveryRepository.of(tx)
-      deliveryService      = DeliveryService.of(deliveryRepository, orderRepository)
+      deliveryService      = DeliveryService.of(deliveryRepository, orderRepository, logHandler)
       deliveryAuthedRoutes = DeliveryController.authedRoutes(deliveryService)
 
-      authUser   = Kleisli(authenticationService.retrieveUser):           Kleisli[F, Request[F], Either[String, ReadAuthorizedUser]]
+      authUser = Kleisli(authenticationService.retrieveUser): Kleisli[
+        F,
+        Request[F],
+        Either[String, AuthorizedUserDomain]
+      ]
       onFailure  = Kleisli(req => OptionT.liftF(Forbidden(req.context))): AuthedRoutes[String, F]
       middleware = AuthMiddleware(authUser, onFailure)
 

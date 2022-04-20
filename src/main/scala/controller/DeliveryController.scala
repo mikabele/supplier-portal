@@ -1,15 +1,16 @@
 package controller
 
+import cats.effect.Sync
 import cats.effect.Concurrent
 import cats.syntax.all._
-import domain.user.{ReadAuthorizedUser, Role}
+import domain.user.{AuthorizedUserDomain, Role}
 import dto.delivery.DeliveryCreateDto
+import error.user.UserError.InvalidUserRole
 import io.circe.generic.auto._
 import org.http4s.AuthedRoutes
 import org.http4s.circe.CirceEntityCodec.{circeEntityDecoder, circeEntityEncoder}
 import org.http4s.dsl.Http4sDsl
 import service.DeliveryService
-import service.error.user.UserError.InvalidUserRole
 import util.ResponseHandlingUtil.marshalResponse
 
 object DeliveryController {
@@ -17,10 +18,10 @@ object DeliveryController {
     deliveryService: DeliveryService[F]
   )(
     implicit dsl: Http4sDsl[F]
-  ): AuthedRoutes[ReadAuthorizedUser, F] = {
+  ): AuthedRoutes[AuthorizedUserDomain, F] = {
     import dsl._
 
-    def assignDelivery(): AuthedRoutes[ReadAuthorizedUser, F] = AuthedRoutes.of[ReadAuthorizedUser, F] {
+    def assignDelivery(): AuthedRoutes[AuthorizedUserDomain, F] = AuthedRoutes.of[AuthorizedUserDomain, F] {
       case req @ POST -> Root / "api" / "delivery" as courier if courier.role == Role.Courier =>
         val res = for {
           createDto <- req.req.as[DeliveryCreateDto]
@@ -32,7 +33,7 @@ object DeliveryController {
         Forbidden(InvalidUserRole(courier.role, List(Role.Courier)).message)
     }
 
-    def delivered(): AuthedRoutes[ReadAuthorizedUser, F] = AuthedRoutes.of[ReadAuthorizedUser, F] {
+    def delivered(): AuthedRoutes[AuthorizedUserDomain, F] = AuthedRoutes.of[AuthorizedUserDomain, F] {
       case PUT -> Root / "api" / "delivery" / UUIDVar(id) as courier if courier.role == Role.Courier =>
         val res = for {
           result <- deliveryService.delivered(courier, id)
@@ -43,7 +44,7 @@ object DeliveryController {
         Forbidden(InvalidUserRole(courier.role, List(Role.Courier)).message)
     }
 
-    def showDeliveries(): AuthedRoutes[ReadAuthorizedUser, F] = AuthedRoutes.of[ReadAuthorizedUser, F] {
+    def showDeliveries(): AuthedRoutes[AuthorizedUserDomain, F] = AuthedRoutes.of[AuthorizedUserDomain, F] {
       case GET -> Root / "api" / "delivery" as courier if courier.role == Role.Courier =>
         for {
           deliveries <- deliveryService.showDeliveries()

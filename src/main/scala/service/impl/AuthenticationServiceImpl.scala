@@ -2,31 +2,47 @@ package service.impl
 
 import cats.Monad
 import cats.data.{Chain, EitherT, NonEmptyList}
-import domain.user._
+import domain.user.AuthorizedUserDomain
 import dto.user.NonAuthorizedUserDto
-import org.http4s.Request
-import org.http4s.headers.Cookie
+import error.general.GeneralError
+import error.user.UserError._
+import logger.LogHandler
+import org.http4s.{headers, Request}
 import org.reactormonk.{CryptoBits, PrivateKey}
 import repository.UserRepository
 import service.AuthenticationService
-import service.error.general.GeneralError
-import service.error.user.UserError.{InvalidUserOrPassword, UserNotFound}
-import util.ConvertToErrorsUtil.instances.fromValidatedNec
-import util.ConvertToErrorsUtil.{ErrorsOr, _}
-import util.ModelMapper.DtoToDomain._
+import util.ConvertToErrorsUtil._
+import util.ConvertToErrorsUtil.instances._
+import util.ModelMapper.DtoToDomain.validateUserDto
 
 import scala.io.Codec
 import scala.util.Random
 
-class AuthenticationServiceImpl[F[_]: Monad](userRepository: UserRepository[F]) extends AuthenticationService[F] {
+// TODO - add unit tests
+// TODO - create demo for project (продемонстрировать работу приложения, запустить все компоненты, рассказать всю функциональность
+//  при помощи функциональных тестов, рассказать про фичи, чему научился, что еще не сделал, можно сделать презентацию,
+//  что можно добавить, попытаться продать свой продукт(типо))
+// TODO - add docker
+// TODO - add README
+// TODO - (optional) kafka
+// TODO - merge sql files
+// TODO - check how to resolve dependency conflicts
+
+class AuthenticationServiceImpl[F[_]: Monad](
+  userRepository: UserRepository[F],
+  logHandler:     LogHandler[F]
+) extends AuthenticationService[F] {
   private val key    = PrivateKey(Codec.toUTF8(Random.alphanumeric.take(20).mkString("")))
   private val crypto = CryptoBits(key)
   private val clock  = java.time.Clock.systemUTC
 
   override def verifyLogin(nonAuthorizedUserDto: NonAuthorizedUserDto): F[ErrorsOr[String]] = {
     val res = for {
+      _          <- logHandler.debug("Start validation : NonAuthorizedUserDto").toErrorsOr
       userDomain <- validateUserDto(nonAuthorizedUserDto).toErrorsOr(fromValidatedNec)
+      _          <- logHandler.debug("Validation finished: NonAuthorizedUserDto").toErrorsOr
       user       <- EitherT.fromOptionF(userRepository.tryGetUser(userDomain), Chain[GeneralError](InvalidUserOrPassword))
+      _          <- logHandler.info(s"User found, id = ${user.id}").toErrorsOr
       token       = crypto.signToken(user.id.toString, clock.millis.toString)
     } yield token
 
@@ -35,9 +51,7 @@ class AuthenticationServiceImpl[F[_]: Monad](userRepository: UserRepository[F]) 
 
   private def validateCookie(req: Request[F]): Either[String, String] = {
     for {
-      header <- req.headers
-        .get[Cookie]
-        .toRight("Cookie parsing error")
+      header <- headers.Cookie.from(req.headers).toRight("Cookie parsing error")
       cookie <- header.values.toList
         .find(_.name == "authcookie")
         .toRight("Couldn't find the authcookie")
@@ -47,11 +61,14 @@ class AuthenticationServiceImpl[F[_]: Monad](userRepository: UserRepository[F]) 
     } yield id
   }
 
-  override def retrieveUser(req: Request[F]): F[Either[String, ReadAuthorizedUser]] = {
+  override def retrieveUser(req: Request[F]): F[Either[String, AuthorizedUserDomain]] = {
     val res = for {
+      _     <- EitherT.liftF[F, String, Unit](logHandler.debug("Start validation: cookie"))
       token <- EitherT.fromEither(validateCookie(req))
+      _     <- EitherT.liftF[F, String, Unit](logHandler.debug("Validation Finished: cookie"))
       users <- EitherT.liftF(userRepository.getByIds(NonEmptyList.of(token)))
       user  <- EitherT.fromOption(users.headOption, UserNotFound(token).message)
+      _     <- EitherT.liftF[F, String, Unit](logHandler.info(s"User found, id ${user.id}"))
     } yield user
 
     res.value
