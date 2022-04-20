@@ -12,20 +12,6 @@ lazy val common = RootProject(file("../common"))
 
 lazy val root = Project(id = "scheduler", base = file(".")).dependsOn(common)
 
-//dependencyOverrides ++= Seq(
-//  "org.tpolecat" %% "doobie-postgres" % doobieVersion,
-//  "org.tpolecat" %% "doobie-specs2"   % doobieVersion,
-//  "org.tpolecat" %% "doobie-refined"  % doobieVersion,
-//  "org.tpolecat" %% "doobie-hikari"   % doobieVersion
-//)
-
-//libraryDependencySchemes ++= Seq(
-//  "org.tpolecat" %% "doobie-postgres" % "early-semver",
-//  "org.tpolecat" %% "doobie-specs2"   % "early-semver",
-//  "org.tpolecat" %% "doobie-refined"  % "early-semver",
-//  "org.tpolecat" %% "doobie-hikari"   % "early-semver"
-//)
-
 libraryDependencies ++= Seq(
   "org.scalatest"           %% "scalatest"            % "3.2.11" % "test",
   "org.apache.logging.log4j" % "log4j-api"            % loggerVersion,

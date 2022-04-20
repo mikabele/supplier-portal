@@ -19,8 +19,6 @@ import scala.io.Codec
 import scala.util.Random
 
 // TODO - add unit tests
-// TODO - add multimodule architecture
-// TODO - check data validation
 // TODO - create demo for project (продемонстрировать работу приложения, запустить все компоненты, рассказать всю функциональность
 //  при помощи функциональных тестов, рассказать про фичи, чему научился, что еще не сделал, можно сделать презентацию,
 //  что можно добавить, попытаться продать свой продукт(типо))
@@ -28,6 +26,7 @@ import scala.util.Random
 // TODO - add README
 // TODO - (optional) kafka
 // TODO - merge sql files
+// TODO - check how to resolve dependency conflicts
 
 class AuthenticationServiceImpl[F[_]: Monad](
   userRepository: UserRepository[F],
