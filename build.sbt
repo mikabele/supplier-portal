@@ -37,7 +37,8 @@ libraryDependencies ++= Seq(
   "org.scalatest"           %% "scalatest"            % "3.2.11" % "test",
   "org.apache.logging.log4j" % "log4j-api"            % loggerVersion,
   "org.apache.logging.log4j" % "log4j-core"           % loggerVersion,
-  "org.reactormonk"         %% "cryptobits"           % "1.3.1"
+  "org.reactormonk"         %% "cryptobits"           % "1.3.1",
+  "org.scalamock"           %% "scalamock"            % "5.2.0"  % Test
 )
 
 addCompilerPlugin(

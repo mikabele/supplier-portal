@@ -13,7 +13,7 @@ import types.UuidStr
 import java.util.UUID
 
 trait ProductRepository[F[_]] {
-  def checkUniqueProduct(name: String, supplierId: Int): F[Option[Int]]
+  def checkUniqueProduct(name: String, supplierId: Int): F[Option[UUID]]
 
   def getNewProductsBySubscription(user: AuthorizedUserDomain): F[List[ProductReadDomain]]
 

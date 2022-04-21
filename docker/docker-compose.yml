@@ -4,9 +4,10 @@ services:
   #postgresql container
   belevich_postgres14:
     image: postgres:14-alpine
+    restart: always
     environment:
       - POSTGRES_DB=supplier_portal
-      - POSTGRES_PASSWORD=admin
+      - POSTGRES_PASSWORD=
       - POSTGRES_USER=postgres
       - SERVICE_NAME=db
       - SERVICE_5432_NAME=db
@@ -24,6 +25,7 @@ services:
     build:
       context: .
       dockerfile: sbt/Dockerfile
+    restart: always
     container_name: supplier_portal_server
     links:
       - belevich_postgres14
@@ -35,6 +37,7 @@ services:
     ports:
       - "8088:8088"
     volumes:
+      - target:/supplier_portal/common/target
       - ../.:/supplier_portal
     working_dir: /supplier_portal
     command: sbt run
@@ -44,6 +47,7 @@ services:
     build:
       context: .
       dockerfile: sbt/Dockerfile
+    restart: always
     container_name: supplier_portal_scheduler
     links:
       - belevich_postgres14
@@ -51,8 +55,12 @@ services:
       belevich_postgres14:
         condition: service_healthy
     volumes:
+      - target:/supplier_portal/common/target
       - ../common:/supplier_portal/common
       - ../scheduler:/supplier_portal/scheduler
       - ../log_files:/supplier_portal/scheduler/log_files
     working_dir: /supplier_portal/scheduler
     command: sbt run
+
+volumes:
+  target: # to exclude target folder from modules to avoid overriding

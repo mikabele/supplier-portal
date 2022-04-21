@@ -18,7 +18,12 @@ import service.ProductService
 import util.ConvertToErrorsUtil._
 import util.ConvertToErrorsUtil.instances._
 import util.ModelMapper.DomainToDto.{readProductDomainToDto, updateProductDomainToDto}
-import util.ModelMapper.DtoToDomain.{validateAttachmentDto, validateCreateProductDto, validateCriteriaDto, validateUpdateProductDto}
+import util.ModelMapper.DtoToDomain.{
+  validateAttachmentDto,
+  validateCreateProductDto,
+  validateCriteriaDto,
+  validateUpdateProductDto
+}
 
 import java.util.UUID
 
@@ -66,7 +71,7 @@ class ProductServiceImpl[F[_]: Monad](
       _     <- logHandler.debug(s"Supplier found ").toErrorsOr
       check <- productRep.checkUniqueProduct(domain.name.value, domain.supplierId.value).toErrorsOr
       _ <- EitherT.cond(
-        check.isEmpty,
+        check.isEmpty || check.exists(_.toString == domain.id.value),
         (),
         Chain[GeneralError](ProductExists(domain.name.value, domain.supplierId.value))
       )

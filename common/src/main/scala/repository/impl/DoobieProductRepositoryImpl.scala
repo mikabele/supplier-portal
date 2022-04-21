@@ -1,11 +1,11 @@
 package repository.impl
 
 import cats.data.NonEmptyList
+import cats.effect.Async
 import cats.syntax.all._
-import cats.effect.{Async, Sync}
 import domain.attachment.{AttachmentCreateDomain, AttachmentReadDomain}
 import domain.criteria.CriteriaDomain
-import domain.product.{ProductCreateDomain, ProductReadDbDomain, ProductReadDomain, ProductStatus, ProductUpdateDomain}
+import domain.product._
 import domain.user.{AuthorizedUserDomain, Role}
 import doobie.Transactor
 import doobie.implicits._
@@ -14,9 +14,9 @@ import doobie.refined.implicits._
 import doobie.util.fragment.Fragment
 import doobie.util.fragments._
 import repository.ProductRepository
+import repository.impl.logger.logger._
 import types.UuidStr
 import util.ModelMapper.DbModelMapper._
-import repository.impl.logger.logger._
 
 import java.util.UUID
 
@@ -46,7 +46,7 @@ class DoobieProductRepositoryImpl[F[_]: Async](tx: Transactor[F]) extends Produc
 
   private val deleteGroupProductQuery = fr"DELETE FROM group_to_product "
   private val deleteFromOrderQuery    = fr"DELETE FROM order_to_product "
-  private val checkUniqueProductQuery = fr"SELECT 1 WHERE EXISTS ( SELECT * FROM product"
+  private val checkUniqueProductQuery = fr"SELECT id FROM product"
 
   override def addProduct(product: ProductCreateDomain): F[UUID] = {
     val fragment =
@@ -173,7 +173,7 @@ class DoobieProductRepositoryImpl[F[_]: Async](tx: Transactor[F]) extends Produc
     } yield joinProductsWithAttachments(products, attachments)
   }
 
-  override def checkUniqueProduct(name: String, supplierId: Int): F[Option[Int]] = {
-    (checkUniqueProductQuery ++ fr" WHERE name = $name AND supplier_id = $supplierId)").query[Int].option.transact(tx)
+  override def checkUniqueProduct(name: String, supplierId: Int): F[Option[UUID]] = {
+    (checkUniqueProductQuery ++ fr" WHERE name = $name AND supplier_id = $supplierId").query[UUID].option.transact(tx)
   }
 }
