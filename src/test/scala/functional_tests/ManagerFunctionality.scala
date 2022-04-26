@@ -252,255 +252,490 @@ class ManagerFunctionality extends AnyFunSpec with BeforeAndAfter {
         " - BadRequestError if validation failed, jsonbody parsing failed and so on; " +
         " - NotFoundError if product not found while update/delete, group not found while inserting/deleting users/products from group and so on"
     ) {
-      it("get BadRequestError if validation failed") {
-        val createProductBody = ProductCreateDto("testproduct", Category.Food, -1, 20f, None)
-        val createProductRequest =
-          Request[IO](method = POST, uri = productAPIAddress)
-            .withEntity(createProductBody)
+      describe("CRUD products") {
+        it("get BadRequestError if validation failed") {
+          val createProductBody = ProductCreateDto("testproduct", Category.Food, -1, 20f, None)
+          val createProductRequest =
+            Request[IO](method = POST, uri = productAPIAddress)
+              .withEntity(createProductBody)
+              .addCookie(managerCookie.name, managerCookie.content)
+
+          client
+            .use(cl => {
+              for {
+                status <- cl.status(createProductRequest)
+              } yield assert(status == BadRequest)
+            })
+            .unsafeRunSync()
+        }
+
+        it("should return BadRequest if Category doesn't exists") {
+          val body =
+            """{
+              |    "name":"meetj",
+              |    "category":10,
+              |    "supplierId": 1,
+              |    "price":25.2
+              |}""".stripMargin
+          val request = Request[IO](method = POST, uri = productAPIAddress)
+            .withEntity(body)
+            .addCookie(managerCookie.name, managerCookie.content)
+          client
+            .use(cl => {
+              for {
+                status <- cl.status(request)
+              } yield assert(status == BadRequest)
+            })
+            .unsafeRunSync()
+        }
+
+        it("create : should return NotFoundError if Supplier doesn't exists") {
+          val body = ProductCreateDto("meeta", Category.Food, 10, 25.2f, None)
+          val request = Request[IO](method = POST, uri = productAPIAddress)
+            .withEntity(body)
+            .addCookie(managerCookie.name, managerCookie.content)
+          client
+            .use(cl => {
+              for {
+                status <- cl.status(request)
+              } yield assert(status == NotFound)
+            })
+            .unsafeRunSync()
+        }
+
+        it("create: Will throw 400 Error if product has non-unique pair of (name,supplier_id)") {
+          val createProductBody = ProductCreateDto("testproduct", Category.Food, 1, 20f, None)
+          val request =
+            Request[IO](method = POST, uri = productAPIAddress)
+              .withEntity(createProductBody)
+              .addCookie(managerCookie.name, managerCookie.content)
+          client
+            .use(cl => {
+              for {
+                id <- cl.fetchAs[UUID](request)
+                s1 <- cl.status(request)
+                deleteRequest = Request[IO](method = DELETE, uri = productAPIAddress / id.toString)
+                  .addCookie(managerCookie.name, managerCookie.content)
+                s2 <- cl.status(deleteRequest)
+              } yield {
+                assert(s1 == BadRequest && s2.isSuccess)
+              }
+            })
+            .unsafeRunSync()
+        }
+
+        it("update : should return NotFoundError if Supplier doesn't exists") {
+          val updateProductBody = ProductUpdateDto(
+            "7befac6d-9e68-4064-927c-b9700438fea1",
+            "testproduct",
+            Category.Food,
+            10,
+            20f,
+            "test update",
+            ProductStatus.InProcessing
+          )
+          val updateRequest = Request[IO](method = PUT, uri = productAPIAddress)
+            .withEntity(updateProductBody)
             .addCookie(managerCookie.name, managerCookie.content)
 
-        client
-          .use(cl => {
-            for {
-              status <- cl.status(createProductRequest)
-            } yield assert(status == BadRequest)
-          })
-          .unsafeRunSync()
-      }
+          client
+            .use(cl => {
+              for {
+                status <- cl.status(updateRequest)
+              } yield assert(status == NotFound)
+            })
+            .unsafeRunSync()
+        }
 
-      it("should return BadRequest if Category doesn't exists") {
-        val body = """{
-                     |    "name":"meetj",
-                     |    "category":10,
-                     |    "supplierId": 1,
-                     |    "price":25.2
-                     |}""".stripMargin
-        val request = Request[IO](method = POST, uri = productAPIAddress)
-          .withEntity(body)
-          .addCookie(managerCookie.name, managerCookie.content)
-        client
-          .use(cl => {
-            for {
-              status <- cl.status(request)
-            } yield assert(status == BadRequest)
-          })
-          .unsafeRunSync()
-      }
+        it("update: Will throw 400 Error if product has non-unique pair of (name,supplier_id)") {
+          val createProductBody1 = ProductCreateDto("testproduct", Category.Food, 1, 20f, None)
+          val request1 =
+            Request[IO](method = POST, uri = productAPIAddress)
+              .withEntity(createProductBody1)
+              .addCookie(managerCookie.name, managerCookie.content)
 
-      it("should return NotFoundError if Supplier doesn't exists") {
-        val body = ProductCreateDto("meeta", Category.Food, 10, 25.2f, None)
-        val request = Request[IO](method = POST, uri = productAPIAddress)
-          .withEntity(body)
-          .addCookie(managerCookie.name, managerCookie.content)
-        client
-          .use(cl => {
-            for {
-              status <- cl.status(request)
-            } yield assert(status == NotFound)
-          })
-          .unsafeRunSync()
-      }
+          val createProductBody2 = ProductCreateDto("testproduc", Category.Food, 1, 20f, None)
+          val request2 =
+            Request[IO](method = POST, uri = productAPIAddress)
+              .withEntity(createProductBody2)
+              .addCookie(managerCookie.name, managerCookie.content)
+          client
+            .use(cl => {
+              for {
+                id1 <- cl.fetchAs[UUID](request1)
+                id2 <- cl.fetchAs[UUID](request2)
+                updateProductBody = ProductUpdateDto(
+                  id2.toString,
+                  "testproduct",
+                  Category.Food,
+                  1,
+                  20f,
+                  "test update",
+                  ProductStatus.InProcessing
+                )
+                updateRequest = Request[IO](method = PUT, uri = productAPIAddress)
+                  .withEntity(updateProductBody)
+                  .addCookie(managerCookie.name, managerCookie.content)
+                actual <- cl.status(updateRequest)
+                deleteRequest1 = Request[IO](method = DELETE, uri = productAPIAddress / id1.toString)
+                  .addCookie(managerCookie.name, managerCookie.content)
+                s1 <- cl.status(deleteRequest1)
+                deleteRequest2 = Request[IO](method = DELETE, uri = productAPIAddress / id2.toString)
+                  .addCookie(managerCookie.name, managerCookie.content)
+                s2 <- cl.status(deleteRequest2)
+              } yield {
+                assert(actual == BadRequest)
+                assert(s1.isSuccess && s2.isSuccess)
+              }
+            })
+            .unsafeRunSync()
+        }
 
-      it("should return NotFoundError if you try to remove non-exists attachment") {
-        val request =
-          Request[IO](method = DELETE, uri = productAPIAddress / "attachment" / "3e05430f-a11e-4641-815b-5d15b1c85099")
-            .addCookie(managerCookie.name, managerCookie.content)
-        client
-          .use(cl => {
-            for {
-              status <- cl.status(request)
-            } yield assert(status == NotFound)
-          })
-          .unsafeRunSync()
-      }
-
-      it(
-        "should return ProductNotFound error with status code NotFound if you try to attach something to non-exists product"
-      ) {
-        val body = AttachmentCreateDto(
-          "https://upload.wikimedia.org/wikipedia/commons/d/dc/Carrot-fb.jpg",
-          "7befac6d-9e68-4064-927c-b9700438fea1"
-        )
-        val request = Request[IO](method = POST, uri = productAPIAddress / "attachment")
-          .withEntity(body)
-          .addCookie(managerCookie.name, managerCookie.content)
-        client
-          .use(cl => {
-            for {
-              status <- cl.status(request)
-            } yield assert(status == NotFound)
-          })
-          .unsafeRunSync()
-      }
-
-      it("should return ProductNotFound error with status code 404 if you try to delete non-existing product") {
-        val invalidDeleteRequest =
-          Request[IO](method = DELETE, uri = productAPIAddress / "7befac6d-9e68-4064-927c-b9700438fea1")
+        it("should return NotFoundError if you try to update non-existing product") {
+          val updateProductBody = ProductUpdateDto(
+            "7befac6d-9e68-4064-927c-b9700438fea1",
+            "testproduct",
+            Category.Food,
+            1,
+            20f,
+            "test update",
+            ProductStatus.InProcessing
+          )
+          val updateRequest = Request[IO](method = PUT, uri = productAPIAddress)
+            .withEntity(updateProductBody)
             .addCookie(managerCookie.name, managerCookie.content)
 
-        client
-          .use(cl => {
-            for {
-              status <- cl.status(invalidDeleteRequest)
-            } yield assert(status == NotFound)
-          })
-          .unsafeRunSync()
+          client
+            .use(cl => {
+              for {
+                status <- cl.status(updateRequest)
+              } yield assert(status == NotFound)
+            })
+            .unsafeRunSync()
+        }
+
+        it("should return ProductNotFound error with status code 404 if you try to delete non-existing product") {
+          val invalidDeleteRequest =
+            Request[IO](method = DELETE, uri = productAPIAddress / "7befac6d-9e68-4064-927c-b9700438fea1")
+              .addCookie(managerCookie.name, managerCookie.content)
+
+          client
+            .use(cl => {
+              for {
+                status <- cl.status(invalidDeleteRequest)
+              } yield assert(status == NotFound)
+            })
+            .unsafeRunSync()
+        }
+
+        it(
+          "should get ForbiddenError if manager will try to delete product in active order(not cancelled and not delivered)"
+        ) {
+          val createProductBody = ProductCreateDto("testproduct", Category.Food, 1, 20f, None)
+          val request =
+            Request[IO](method = POST, uri = productAPIAddress)
+              .withEntity(createProductBody)
+              .addCookie(managerCookie.name, managerCookie.content)
+          val createGroupBody = GroupCreateDto("age18")
+          val createGroupRequest = Request[IO](method = POST, uri = groupAPIAddress)
+            .withEntity(createGroupBody)
+            .addCookie(managerCookie.name, managerCookie.content)
+          client
+            .use(cl => {
+              for {
+                id              <- cl.fetchAs[UUID](request)
+                groupId         <- cl.fetchAs[UUID](createGroupRequest)
+                groupWithUser    = GroupWithUsersDto(groupId.toString, List(clientUserId))
+                groupWithProduct = GroupWithProductsDto(groupId.toString, List(id.toString))
+                addUsersRequest = Request[IO](method = POST, uri = groupAPIAddress / "users")
+                  .withEntity(groupWithUser)
+                  .addCookie(managerCookie.name, managerCookie.content)
+                s1 <- cl.status(addUsersRequest)
+                addProductsRequest = Request[IO](method = POST, uri = groupAPIAddress / "products")
+                  .addCookie(managerCookie.name, managerCookie.content)
+                  .withEntity(groupWithProduct)
+                s2           <- cl.status(addProductsRequest)
+                makeOrderBody = OrderCreateDto(List(OrderProductDto(id.toString, 10)), "Minsk")
+                makeOrderRequest = Request[IO](method = POST, uri = orderAPIAddress)
+                  .addCookie(clientCookie.name, clientCookie.content)
+                  .withEntity(makeOrderBody)
+                orderId <- cl.fetchAs[UUID](makeOrderRequest)
+                viewOrdersRequest = Request[IO](method = GET, uri = orderAPIAddress)
+                  .addCookie(clientCookie.name, clientCookie.content)
+                status <- cl.status(viewOrdersRequest)
+
+                deleteRequest = Request[IO](method = DELETE, uri = productAPIAddress / id.toString)
+                  .addCookie(managerCookie.name, managerCookie.content)
+                invalidStatus <- cl.status(deleteRequest)
+
+                cancelOrderRequest = Request[IO](method = PUT, uri = orderAPIAddress / orderId.toString)
+                  .addCookie(clientCookie.name, clientCookie.content)
+                s3 <- cl.status(cancelOrderRequest)
+                deleteGroupRequest = Request[IO](method = DELETE, uri = groupAPIAddress / groupId.toString)
+                  .addCookie(managerCookie.name, managerCookie.content)
+                s4 <- cl.status(deleteGroupRequest)
+                s5 <- cl.status(deleteRequest)
+              } yield {
+                assert(status.isSuccess && s1.isSuccess && s2.isSuccess && s3.isSuccess && s4.isSuccess && s5.isSuccess)
+                assert(invalidStatus == Forbidden)
+              }
+            })
+            .unsafeRunSync()
+        }
       }
 
-      it("should return NotFoundError if you try to update non-existing product") {
-        val updateProductBody = ProductUpdateDto(
-          "7befac6d-9e68-4064-927c-b9700438fea1",
-          "testproduct",
-          Category.Food,
-          1,
-          20f,
-          "test update",
-          ProductStatus.InProcessing
-        )
-        val updateRequest = Request[IO](method = PUT, uri = productAPIAddress)
-          .withEntity(updateProductBody)
-          .addCookie(managerCookie.name, managerCookie.content)
+      describe("attachment tests") {
 
-        client
-          .use(cl => {
-            for {
-              status <- cl.status(updateRequest)
-            } yield assert(status == NotFound)
-          })
-          .unsafeRunSync()
+        it("should return NotFoundError if you try to remove non-exists attachment") {
+          val request =
+            Request[IO](
+              method = DELETE,
+              uri    = productAPIAddress / "attachment" / "3e05430f-a11e-4641-815b-5d15b1c85099"
+            )
+              .addCookie(managerCookie.name, managerCookie.content)
+          client
+            .use(cl => {
+              for {
+                status <- cl.status(request)
+              } yield assert(status == NotFound)
+            })
+            .unsafeRunSync()
+        }
+
+        it(
+          "should return ProductNotFound error with status code NotFound if you try to attach something to non-exists product"
+        ) {
+          val body = AttachmentCreateDto(
+            "https://upload.wikimedia.org/wikipedia/commons/d/dc/Carrot-fb.jpg",
+            "7befac6d-9e68-4064-927c-b9700438fea1"
+          )
+          val request = Request[IO](method = POST, uri = productAPIAddress / "attachment")
+            .withEntity(body)
+            .addCookie(managerCookie.name, managerCookie.content)
+          client
+            .use(cl => {
+              for {
+                status <- cl.status(request)
+              } yield assert(status == NotFound)
+            })
+            .unsafeRunSync()
+        }
+
+        it("add attachment : Will throw 400 Error if attachment with given URL and product_id already exists") {
+          val createProductBody = ProductCreateDto("testproduct", Category.Food, 1, 20f, None)
+          val createProductRequest =
+            Request[IO](method = POST, uri = productAPIAddress)
+              .withEntity(createProductBody)
+              .addCookie(managerCookie.name, managerCookie.content)
+          client
+            .use(cl => {
+              for {
+                id <- cl.fetchAs[UUID](createProductRequest)
+                attachmentCreateBody = AttachmentCreateDto(
+                  "https://upload.wikimedia.org/wikipedia/commons/d/dc/Carrot-fb.jpg",
+                  id.toString
+                )
+                createAttachmentRequest =
+                  Request[IO](method = POST, uri = productAPIAddress / "attachment")
+                    .withEntity(attachmentCreateBody)
+                    .addCookie(managerCookie.name, managerCookie.content)
+                attachmentId <- cl.fetchAs[UUID](createAttachmentRequest)
+                badStatus    <- cl.status(createAttachmentRequest)
+                deleteRequest = Request[IO](method = DELETE, uri = productAPIAddress / id.toString)
+                  .addCookie(managerCookie.name, managerCookie.content)
+                s2 <- cl.status(deleteRequest)
+              } yield {
+                assert(badStatus == BadRequest)
+                assert(s2.isSuccess)
+              }
+            })
+            .unsafeRunSync()
+        }
       }
 
-      it("should return NotFound error if you try to delete non-existing group") {
-        val deleteGroupRequest =
-          Request[IO](method = DELETE, uri = groupAPIAddress / "7befac6d-9e68-4064-927c-b9700438fea1")
+      describe("group tests") {
+
+        it("create: Will throw 400 Error if group with given name already exists") {
+          val createGroupBody = GroupCreateDto("age18")
+          val createGroupRequest = Request[IO](method = POST, uri = groupAPIAddress)
+            .withEntity(createGroupBody)
+            .addCookie(managerCookie.name, managerCookie.content)
+          client
+            .use(cl => {
+              for {
+                groupId   <- cl.fetchAs[UUID](createGroupRequest)
+                badStatus <- cl.status(createGroupRequest)
+                deleteGroupRequest = Request[IO](method = DELETE, uri = groupAPIAddress / groupId.toString)
+                  .addCookie(managerCookie.name, managerCookie.content)
+                s3 <- cl.status(deleteGroupRequest)
+              } yield {
+                assert(badStatus == BadRequest && s3.isSuccess)
+              }
+            })
+            .unsafeRunSync()
+        }
+
+        it("should return NotFound error if you try to delete non-existing group") {
+          val deleteGroupRequest =
+            Request[IO](method = DELETE, uri = groupAPIAddress / "7befac6d-9e68-4064-927c-b9700438fea1")
+              .addCookie(managerCookie.name, managerCookie.content)
+
+          client
+            .use(cl => {
+              for {
+                status <- cl.status(deleteGroupRequest)
+              } yield assert(status == NotFound)
+            })
+            .unsafeRunSync()
+        }
+
+        it("should return BadRequestError if you passed duplicated user/product ids in add_users_to_group endpoint") {
+          val createGroupBody = GroupCreateDto("age18")
+          val createGroupRequest = Request[IO](method = POST, uri = groupAPIAddress)
+            .withEntity(createGroupBody)
+            .addCookie(managerCookie.name, managerCookie.content)
+          client
+            .use(cl => {
+              for {
+                groupId      <- cl.fetchAs[UUID](createGroupRequest)
+                groupWithUser = GroupWithUsersDto(groupId.toString, List(clientUserId, clientUserId))
+                addUsersRequest = Request[IO](method = POST, uri = groupAPIAddress / "users")
+                  .withEntity(groupWithUser)
+                  .addCookie(managerCookie.name, managerCookie.content)
+                s1 <- cl.status(addUsersRequest)
+                deleteGroupRequest = Request[IO](method = DELETE, uri = groupAPIAddress / groupId.toString)
+                  .addCookie(managerCookie.name, managerCookie.content)
+                s3 <- cl.status(deleteGroupRequest)
+              } yield {
+                assert(s1 == BadRequest)
+                assert(s3.isSuccess)
+              }
+            })
+            .unsafeRunSync()
+        }
+
+        it("should return NotFoundError if you try to add/remove users/products from non-existing group") {
+          val groupWithUser = GroupWithUsersDto("7befac6d-9e68-4064-927c-b9700438fea1", List(clientUserId))
+          val addUsersRequest = Request[IO](method = POST, uri = groupAPIAddress / "users")
+            .withEntity(groupWithUser)
+            .addCookie(managerCookie.name, managerCookie.content)
+          client
+            .use(cl => {
+              for {
+                status <- cl.status(addUsersRequest)
+              } yield assert(status == NotFound)
+            })
+            .unsafeRunSync()
+        }
+
+        it("should return NotFoundError if user/product with you want to add in the group doesn't exist") {
+          val createGroupBody = GroupCreateDto("age18")
+          val createGroupRequest = Request[IO](method = POST, uri = groupAPIAddress)
+            .withEntity(createGroupBody)
+            .addCookie(managerCookie.name, managerCookie.content)
+          client
+            .use(cl => {
+              for {
+                groupId      <- cl.fetchAs[UUID](createGroupRequest)
+                groupWithUser = GroupWithUsersDto(groupId.toString, List("7befac6d-9e68-4064-927c-b9700438fea1"))
+                addUsersRequest = Request[IO](method = POST, uri = groupAPIAddress / "users")
+                  .withEntity(groupWithUser)
+                  .addCookie(managerCookie.name, managerCookie.content)
+                s1 <- cl.status(addUsersRequest)
+                deleteGroupRequest = Request[IO](method = DELETE, uri = groupAPIAddress / groupId.toString)
+                  .addCookie(managerCookie.name, managerCookie.content)
+                s3 <- cl.status(deleteGroupRequest)
+              } yield {
+                assert(s1 == NotFound)
+                assert(s3.isSuccess)
+              }
+            })
+            .unsafeRunSync()
+        }
+
+        it("should return 400 Error if you try to add user/product in group more than once") {
+          val createProductBody = ProductCreateDto("testproduct", Category.Food, 1, 20f, None)
+          val createProductRequest =
+            Request[IO](method = POST, uri = productAPIAddress)
+              .withEntity(createProductBody)
+              .addCookie(managerCookie.name, managerCookie.content)
+
+          val createGroupBody = GroupCreateDto("age18")
+          val createGroupRequest = Request[IO](method = POST, uri = groupAPIAddress)
+            .withEntity(createGroupBody)
             .addCookie(managerCookie.name, managerCookie.content)
 
-        client
-          .use(cl => {
-            for {
-              status <- cl.status(deleteGroupRequest)
-            } yield assert(status == NotFound)
-          })
-          .unsafeRunSync()
-      }
+          client
+            .use(cl => {
+              for {
+                id              <- cl.fetchAs[UUID](createProductRequest)
+                groupId         <- cl.fetchAs[UUID](createGroupRequest)
+                groupWithUser    = GroupWithUsersDto(groupId.toString, List(clientUserId))
+                groupWithProduct = GroupWithProductsDto(groupId.toString, List(id.toString))
+                addProductsRequest = Request[IO](method = POST, uri = groupAPIAddress / "products")
+                  .addCookie(managerCookie.name, managerCookie.content)
+                  .withEntity(groupWithProduct)
+                s2         <- cl.status(addProductsRequest)
+                badStatus1 <- cl.status(addProductsRequest)
+                addUsersRequest = Request[IO](method = POST, uri = groupAPIAddress / "users")
+                  .withEntity(groupWithUser)
+                  .addCookie(managerCookie.name, managerCookie.content)
+                s1         <- cl.status(addUsersRequest)
+                badStatus2 <- cl.status(addUsersRequest)
+                deleteGroupRequest = Request[IO](method = DELETE, uri = groupAPIAddress / groupId.toString)
+                  .addCookie(managerCookie.name, managerCookie.content)
+                s3 <- cl.status(deleteGroupRequest)
+                deleteRequest = Request[IO](method = DELETE, uri = productAPIAddress / id.toString)
+                  .addCookie(managerCookie.name, managerCookie.content)
+                s4 <- cl.status(deleteRequest)
+              } yield {
+                assert(badStatus1 == BadRequest && badStatus2 == BadRequest)
+                assert(s1.isSuccess && s2.isSuccess && s3.isSuccess && s4.isSuccess)
+              }
+            })
+            .unsafeRunSync()
+        }
 
-      it("should return BadRequestError if you passed duplicated user/product ids in add_users_to_group endpoint") {
-        val createGroupBody = GroupCreateDto("age18")
-        val createGroupRequest = Request[IO](method = POST, uri = groupAPIAddress)
-          .withEntity(createGroupBody)
-          .addCookie(managerCookie.name, managerCookie.content)
-        client
-          .use(cl => {
-            for {
-              groupId      <- cl.fetchAs[UUID](createGroupRequest)
-              groupWithUser = GroupWithUsersDto(groupId.toString, List(clientUserId, clientUserId))
-              addUsersRequest = Request[IO](method = POST, uri = groupAPIAddress / "users")
-                .withEntity(groupWithUser)
-                .addCookie(managerCookie.name, managerCookie.content)
-              s1 <- cl.status(addUsersRequest)
-              deleteGroupRequest = Request[IO](method = DELETE, uri = groupAPIAddress / groupId.toString)
-                .addCookie(managerCookie.name, managerCookie.content)
-              s3 <- cl.status(deleteGroupRequest)
-            } yield {
-              assert(s1 == BadRequest)
-              assert(s3.isSuccess)
-            }
-          })
-          .unsafeRunSync()
-      }
+        it("should return 400 Error if you try to delete non-existing in group user/product") {
+          val createProductBody = ProductCreateDto("testproduct", Category.Food, 1, 20f, None)
+          val createProductRequest =
+            Request[IO](method = POST, uri = productAPIAddress)
+              .withEntity(createProductBody)
+              .addCookie(managerCookie.name, managerCookie.content)
 
-      it("should return NotFoundError if you try to add/remove users/products from group") {
-        val groupWithUser = GroupWithUsersDto("7befac6d-9e68-4064-927c-b9700438fea1", List(clientUserId))
-        val addUsersRequest = Request[IO](method = POST, uri = groupAPIAddress / "users")
-          .withEntity(groupWithUser)
-          .addCookie(managerCookie.name, managerCookie.content)
-        client
-          .use(cl => {
-            for {
-              status <- cl.status(addUsersRequest)
-            } yield assert(status == NotFound)
-          })
-          .unsafeRunSync()
-      }
-
-      it("should return NotFoundError if user/product with you want to add in the group doesn't exist") {
-        val createGroupBody = GroupCreateDto("age18")
-        val createGroupRequest = Request[IO](method = POST, uri = groupAPIAddress)
-          .withEntity(createGroupBody)
-          .addCookie(managerCookie.name, managerCookie.content)
-        client
-          .use(cl => {
-            for {
-              groupId      <- cl.fetchAs[UUID](createGroupRequest)
-              groupWithUser = GroupWithUsersDto(groupId.toString, List("7befac6d-9e68-4064-927c-b9700438fea1"))
-              addUsersRequest = Request[IO](method = POST, uri = groupAPIAddress / "users")
-                .withEntity(groupWithUser)
-                .addCookie(managerCookie.name, managerCookie.content)
-              s1 <- cl.status(addUsersRequest)
-              deleteGroupRequest = Request[IO](method = DELETE, uri = groupAPIAddress / groupId.toString)
-                .addCookie(managerCookie.name, managerCookie.content)
-              s3 <- cl.status(deleteGroupRequest)
-            } yield {
-              assert(s1 == NotFound)
-              assert(s3.isSuccess)
-            }
-          })
-          .unsafeRunSync()
-      }
-
-      it(
-        "should get ForbiddenError if manager will try to delete product in active order(not cancelled and not delivered)"
-      ) {
-        val createProductBody = ProductCreateDto("testproduct", Category.Food, 1, 20f, None)
-        val request =
-          Request[IO](method = POST, uri = productAPIAddress)
-            .withEntity(createProductBody)
+          val createGroupBody = GroupCreateDto("age18")
+          val createGroupRequest = Request[IO](method = POST, uri = groupAPIAddress)
+            .withEntity(createGroupBody)
             .addCookie(managerCookie.name, managerCookie.content)
-        val createGroupBody = GroupCreateDto("age18")
-        val createGroupRequest = Request[IO](method = POST, uri = groupAPIAddress)
-          .withEntity(createGroupBody)
-          .addCookie(managerCookie.name, managerCookie.content)
-        client
-          .use(cl => {
-            for {
-              id              <- cl.fetchAs[UUID](request)
-              groupId         <- cl.fetchAs[UUID](createGroupRequest)
-              groupWithUser    = GroupWithUsersDto(groupId.toString, List(clientUserId))
-              groupWithProduct = GroupWithProductsDto(groupId.toString, List(id.toString))
-              addUsersRequest = Request[IO](method = POST, uri = groupAPIAddress / "users")
-                .withEntity(groupWithUser)
-                .addCookie(managerCookie.name, managerCookie.content)
-              s1 <- cl.status(addUsersRequest)
-              addProductsRequest = Request[IO](method = POST, uri = groupAPIAddress / "products")
-                .addCookie(managerCookie.name, managerCookie.content)
-                .withEntity(groupWithProduct)
-              s2           <- cl.status(addProductsRequest)
-              makeOrderBody = OrderCreateDto(List(OrderProductDto(id.toString, 10)), "Minsk")
-              makeOrderRequest = Request[IO](method = POST, uri = orderAPIAddress)
-                .addCookie(clientCookie.name, clientCookie.content)
-                .withEntity(makeOrderBody)
-              orderId <- cl.fetchAs[UUID](makeOrderRequest)
-              viewOrdersRequest = Request[IO](method = GET, uri = orderAPIAddress)
-                .addCookie(clientCookie.name, clientCookie.content)
-              status <- cl.status(viewOrdersRequest)
 
-              deleteRequest = Request[IO](method = DELETE, uri = productAPIAddress / id.toString)
-                .addCookie(managerCookie.name, managerCookie.content)
-              invalidStatus <- cl.status(deleteRequest)
-
-              cancelOrderRequest = Request[IO](method = PUT, uri = orderAPIAddress / orderId.toString)
-                .addCookie(clientCookie.name, clientCookie.content)
-              s3 <- cl.status(cancelOrderRequest)
-              deleteGroupRequest = Request[IO](method = DELETE, uri = groupAPIAddress / groupId.toString)
-                .addCookie(managerCookie.name, managerCookie.content)
-              s4 <- cl.status(deleteGroupRequest)
-              s5 <- cl.status(deleteRequest)
-            } yield {
-              assert(status.isSuccess && s1.isSuccess && s2.isSuccess && s3.isSuccess && s4.isSuccess && s5.isSuccess)
-              assert(invalidStatus == Forbidden)
-            }
-          })
-          .unsafeRunSync()
+          client
+            .use(cl => {
+              for {
+                id              <- cl.fetchAs[UUID](createProductRequest)
+                groupId         <- cl.fetchAs[UUID](createGroupRequest)
+                groupWithUser    = GroupWithUsersDto(groupId.toString, List(clientUserId))
+                groupWithProduct = GroupWithProductsDto(groupId.toString, List(id.toString))
+                deleteUserFromGroupRequest = Request[IO](method = DELETE, uri = groupAPIAddress / "users")
+                  .addCookie(managerCookie.name, managerCookie.content)
+                  .withEntity(groupWithUser)
+                badStatus1 <- cl.status(deleteUserFromGroupRequest)
+                deleteProductFromGroupRequest = Request[IO](method = DELETE, uri = groupAPIAddress / "products")
+                  .addCookie(managerCookie.name, managerCookie.content)
+                  .withEntity(groupWithProduct)
+                badStatus2 <- cl.status(deleteProductFromGroupRequest)
+                deleteGroupRequest = Request[IO](method = DELETE, uri = groupAPIAddress / groupId.toString)
+                  .addCookie(managerCookie.name, managerCookie.content)
+                s3 <- cl.status(deleteGroupRequest)
+                deleteRequest = Request[IO](method = DELETE, uri = productAPIAddress / id.toString)
+                  .addCookie(managerCookie.name, managerCookie.content)
+                s4 <- cl.status(deleteRequest)
+              } yield {
+                assert(badStatus1 == BadRequest && badStatus2 == BadRequest)
+                assert(s3.isSuccess && s4.isSuccess)
+              }
+            })
+            .unsafeRunSync()
+        }
       }
     }
   }

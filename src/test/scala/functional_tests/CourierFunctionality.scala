@@ -146,5 +146,88 @@ class CourierFunctionality extends AnyFunSpec {
         })
         .unsafeRunSync()
     }
+
+    it("Will throw 400 Error when pick-up order if order has status differed from Ordered") {
+      val createProductBody = ProductCreateDto("testproduct", Category.Food, 1, 20f, None)
+      val request =
+        Request[IO](method = POST, uri = productAPIAddress)
+          .withEntity(createProductBody)
+          .addCookie(managerCookie.name, managerCookie.content)
+
+      client
+        .use(cl => {
+          for {
+            id           <- cl.fetchAs[UUID](request)
+            makeOrderBody = OrderCreateDto(List(OrderProductDto(id.toString, 10)), "Minsk")
+            makeOrderRequest = Request[IO](method = POST, uri = orderAPIAddress)
+              .addCookie(clientCookie.name, clientCookie.content)
+              .withEntity(makeOrderBody)
+            orderId           <- cl.fetchAs[UUID](makeOrderRequest)
+            createDeliveryBody = DeliveryCreateDto(orderId.toString)
+            createDeliveryRequest = Request[IO](method = POST, uri = deliveryAPIAddress)
+              .addCookie(courierCookie.name, courierCookie.content)
+              .withEntity(createDeliveryBody)
+            s7     <- cl.status(createDeliveryRequest)
+            actual <- cl.status(createDeliveryRequest)
+            deliveredRequest = Request[IO](method = PUT, uri = deliveryAPIAddress / orderId.toString)
+              .addCookie(courierCookie.name, courierCookie.content)
+            s6 <- cl.status(deliveredRequest)
+            deleteRequest = Request[IO](method = DELETE, uri = productAPIAddress / id.toString)
+              .addCookie(managerCookie.name, managerCookie.content)
+            s5 <- cl.status(deleteRequest)
+          } yield {
+            assert(actual == BadRequest && s7.isSuccess && s6.isSuccess && s5.isSuccess)
+          }
+        })
+        .unsafeRunSync()
+    }
+
+    it("delivered: Will throw 404 Error if order doesn’t exist") {
+
+      val deliveredRequest =
+        Request[IO](method = PUT, uri = deliveryAPIAddress / "7befac6d-9e68-4064-927c-b9700438fea1")
+          .addCookie(courierCookie.name, courierCookie.content)
+
+      client
+        .use(cl => {
+          for {
+            status <- cl.status(deliveredRequest)
+          } yield assert(status == NotFound)
+        })
+        .unsafeRunSync()
+    }
+
+    it("delivered: Will throw 400 Error if order has status differed from PickedUp") {
+      val createProductBody = ProductCreateDto("testproduct", Category.Food, 1, 20f, None)
+      val request =
+        Request[IO](method = POST, uri = productAPIAddress)
+          .withEntity(createProductBody)
+          .addCookie(managerCookie.name, managerCookie.content)
+
+      client
+        .use(cl => {
+          for {
+            id           <- cl.fetchAs[UUID](request)
+            makeOrderBody = OrderCreateDto(List(OrderProductDto(id.toString, 10)), "Minsk")
+            makeOrderRequest = Request[IO](method = POST, uri = orderAPIAddress)
+              .addCookie(clientCookie.name, clientCookie.content)
+              .withEntity(makeOrderBody)
+            orderId <- cl.fetchAs[UUID](makeOrderRequest)
+
+            deliveredRequest = Request[IO](method = PUT, uri = deliveryAPIAddress / orderId.toString)
+              .addCookie(courierCookie.name, courierCookie.content)
+            s6 <- cl.status(deliveredRequest)
+            cancelOrderRequest = Request[IO](method = PUT, uri = orderAPIAddress / orderId.toString)
+              .addCookie(clientCookie.name, clientCookie.content)
+            s3 <- cl.status(cancelOrderRequest)
+            deleteRequest = Request[IO](method = DELETE, uri = productAPIAddress / id.toString)
+              .addCookie(managerCookie.name, managerCookie.content)
+            s5 <- cl.status(deleteRequest)
+          } yield {
+            assert(s6 == BadRequest && s3.isSuccess && s5.isSuccess)
+          }
+        })
+        .unsafeRunSync()
+    }
   }
 }

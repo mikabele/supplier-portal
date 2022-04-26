@@ -7,8 +7,6 @@ import io.circe.Json
 import io.circe.syntax._
 import types._
 
-// TODO - when will work on it don't forget about password encryption(encoding)
-
 object user {
 
   sealed trait Role extends EnumEntry with Snakecase

@@ -1,7 +1,7 @@
 package domain
 
 import domain.attachment.AttachmentReadDomain
-import domain.category.Category
+import domain.category.CategoryDomain
 import domain.supplier.SupplierDomain
 import doobie.postgres.implicits._
 import enumeratum.EnumEntry.Snakecase
@@ -14,7 +14,7 @@ object product {
 
   final case class ProductCreateDomain(
     name:        NonEmptyStr,
-    category:    Category,
+    categoryId:  PositiveInt,
     supplierId:  PositiveInt,
     price:       NonNegativeFloat,
     description: Option[String]
@@ -23,7 +23,7 @@ object product {
   final case class ProductReadDomain(
     id:              UuidStr,
     name:            NonEmptyStr,
-    category:        Category,
+    category:        CategoryDomain,
     supplier:        SupplierDomain,
     price:           NonNegativeFloat,
     description:     String,
@@ -35,7 +35,7 @@ object product {
   final case class ProductReadDbDomain(
     id:              UuidStr,
     name:            NonEmptyStr,
-    category:        Category,
+    category:        CategoryDomain,
     supplier:        SupplierDomain,
     price:           NonNegativeFloat,
     description:     String,
@@ -46,7 +46,7 @@ object product {
   final case class ProductUpdateDomain(
     id:          UuidStr,
     name:        NonEmptyStr,
-    category:    Category,
+    categoryId:  PositiveInt,
     supplierId:  PositiveInt,
     price:       NonNegativeFloat,
     description: String,

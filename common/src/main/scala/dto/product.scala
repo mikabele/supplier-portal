@@ -1,6 +1,6 @@
 package dto
 
-import domain.category.Category
+import domain.category.CategoryDomain
 import domain.product.ProductStatus
 import dto.attachment.AttachmentReadDto
 import dto.supplier.SupplierDto
@@ -9,7 +9,7 @@ object product {
 
   final case class ProductCreateDto(
     name:        String,
-    category:    Category,
+    categoryId:  Int,
     supplierId:  Int,
     price:       Float,
     description: Option[String]
@@ -18,7 +18,7 @@ object product {
   final case class ProductUpdateDto(
     id:          String,
     name:        String,
-    category:    Category,
+    categoryId:  Int,
     supplierId:  Int,
     price:       Float,
     description: String,
@@ -28,7 +28,7 @@ object product {
   final case class ProductReadDto(
     id:              String,
     name:            String,
-    category:        Category,
+    category:        CategoryDomain,
     supplier:        SupplierDto,
     price:           Float,
     description:     String,

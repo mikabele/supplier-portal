@@ -74,7 +74,7 @@ object ModelMapper {
     def createProductDomainToDto(product: ProductCreateDomain): ProductCreateDto = {
       ProductCreateDto(
         product.name.value,
-        product.category,
+        product.categoryId,
         product.supplierId.value,
         product.price.value,
         product.description
@@ -284,7 +284,6 @@ object ModelMapper {
       ).mapN(SupplierDomain)
     }
 
-    // TODO - remove validatedNec from this method
     def validateCategorySubscriptionDto(
       dto: CategorySubscriptionDto
     ): ValidatedNec[GeneralError, CategorySubscriptionDomain] = {

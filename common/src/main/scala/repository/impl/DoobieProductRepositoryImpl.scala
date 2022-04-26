@@ -26,8 +26,10 @@ class DoobieProductRepositoryImpl[F[_]: Async](tx: Transactor[F]) extends Produc
   private val updateProductQuery = fr"UPDATE product "
   private val deleteProductQuery = fr"DELETE FROM product "
   private val getProductsQuery =
-    fr"SELECT p.id, p.name, p.category_id, s.id, s.name, s.address, p.price, p.description, p.status,TO_CHAR(p.publication_date,'yyyy-MM-dd HH:mm:ss') " ++
+    fr"SELECT p.id, p.name, c.id, c.name, s.id, s.name, s.address, p.price, p.description, p.status,TO_CHAR(p.publication_date,'yyyy-MM-dd HH:mm:ss') " ++
       fr"FROM product AS p " ++
+      fr"INNER JOIN category AS c " ++
+      fr"ON p.category_id = c.id" ++
       fr"INNER JOIN supplier AS s " ++
       fr"ON p.supplier_id = s.id "
 
@@ -51,7 +53,7 @@ class DoobieProductRepositoryImpl[F[_]: Async](tx: Transactor[F]) extends Produc
   override def addProduct(product: ProductCreateDomain): F[UUID] = {
     val fragment =
       addProductQuery ++
-        fr"${product.name}, ${product.category}, ${product.supplierId}, ${product.price}," ++
+        fr"${product.name}, ${product.categoryId}, ${product.supplierId}, ${product.price}," ++
         fr"${product.description.getOrElse("")})"
     fragment.update
       .withUniqueGeneratedKeys[UUID]("id")

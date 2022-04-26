@@ -3,7 +3,7 @@ package functional_tests
 import cats.effect._
 import domain.category.Category
 import domain.product.ProductStatus
-import dto.attachment.AttachmentReadDto
+import dto.attachment.{AttachmentCreateDto, AttachmentReadDto}
 import dto.criteria.CriteriaDto
 import dto.delivery.DeliveryCreateDto
 import dto.group.{GroupCreateDto, GroupWithProductsDto, GroupWithUsersDto}
@@ -20,6 +20,7 @@ import org.http4s.dsl.io._
 import org.http4s.implicits._
 import org.http4s.{Request, ResponseCookie}
 import org.scalatest.funspec.AnyFunSpec
+
 import scala.concurrent.ExecutionContext.Implicits.global
 import java.time.LocalDateTime
 import java.time.format.DateTimeFormatter
@@ -210,6 +211,12 @@ class ClientFunctionality extends AnyFunSpec {
         Request[IO](method = DELETE, uri = subscriptionAPIAddress / "category")
           .addCookie(clientCookie.name, clientCookie.content)
           .withEntity(subscribeCategoryBody)
+
+      val createProductBody = ProductCreateDto("testproduct", Category.Food, 1, 20f, None)
+      val createProductRequest =
+        Request[IO](method = POST, uri = productAPIAddress)
+          .withEntity(createProductBody)
+          .addCookie(managerCookie.name, managerCookie.content)
       client
         .use(cl => {
           for {
@@ -219,8 +226,22 @@ class ClientFunctionality extends AnyFunSpec {
             expectedCategories = List(Category.Food)
             actualSuppliers   <- cl.fetchAs[List[SupplierDto]](getSupplierSubRequest)
             expectedSuppliers  = List(supplierDto)
-            s3                <- cl.status(removeSupplierSubRequest)
-            s4                <- cl.status(removeCategorySubRequest)
+            id                <- cl.fetchAs[UUID](createProductRequest)
+            attachmentCreateBody = AttachmentCreateDto(
+              "https://upload.wikimedia.org/wikipedia/commons/d/dc/Carrot-fb.jpg",
+              id.toString
+            )
+            createAttachmentRequest =
+              Request[IO](method = POST, uri = productAPIAddress / "attachment")
+                .withEntity(attachmentCreateBody)
+                .addCookie(managerCookie.name, managerCookie.content)
+            attachmentId <- cl.fetchAs[UUID](createAttachmentRequest)
+            _             = Thread.sleep(120000) // check email
+            deleteRequest = Request[IO](method = DELETE, uri = productAPIAddress / id.toString)
+              .addCookie(managerCookie.name, managerCookie.content)
+            s2 <- cl.status(deleteRequest)
+            s3 <- cl.status(removeSupplierSubRequest)
+            s4 <- cl.status(removeCategorySubRequest)
           } yield {
             assert(actualSuppliers == expectedSuppliers)
             assert(actualCategories == expectedCategories)
@@ -230,216 +251,221 @@ class ClientFunctionality extends AnyFunSpec {
         .unsafeRunSync()
     }
 
-    it("should return NotFoundError if you try to cancel non-existing order") {
-      val cancelOrderRequest =
-        Request[IO](method = PUT, uri = orderAPIAddress / "7befac6d-9e68-4064-927c-b9700438fea1")
+    describe("order limitations") {
+      it("should return NotFoundError if you try to cancel non-existing order") {
+        val cancelOrderRequest =
+          Request[IO](method = PUT, uri = orderAPIAddress / "7befac6d-9e68-4064-927c-b9700438fea1")
+            .addCookie(clientCookie.name, clientCookie.content)
+        client
+          .use(cl => {
+            for {
+              status <- cl.status(cancelOrderRequest)
+            } yield assert(status == NotFound)
+          })
+          .unsafeRunSync()
+      }
+
+      it("should return BadRequestError if you try to cancel order that is in status Cancelled, Assigned, Delivered") {
+        val createProductBody = ProductCreateDto("testproduct", Category.Food, 1, 20f, None)
+        val request =
+          Request[IO](method = POST, uri = productAPIAddress)
+            .withEntity(createProductBody)
+            .addCookie(managerCookie.name, managerCookie.content)
+        val createGroupBody = GroupCreateDto("age18")
+        val createGroupRequest = Request[IO](method = POST, uri = groupAPIAddress)
+          .withEntity(createGroupBody)
+          .addCookie(managerCookie.name, managerCookie.content)
+        client
+          .use(cl => {
+            for {
+              id              <- cl.fetchAs[UUID](request)
+              groupId         <- cl.fetchAs[UUID](createGroupRequest)
+              groupWithUser    = GroupWithUsersDto(groupId.toString, List(clientUserId))
+              groupWithProduct = GroupWithProductsDto(groupId.toString, List(id.toString))
+              addUsersRequest = Request[IO](method = POST, uri = groupAPIAddress / "users")
+                .withEntity(groupWithUser)
+                .addCookie(managerCookie.name, managerCookie.content)
+              s1 <- cl.status(addUsersRequest)
+              addProductsRequest = Request[IO](method = POST, uri = groupAPIAddress / "products")
+                .addCookie(managerCookie.name, managerCookie.content)
+                .withEntity(groupWithProduct)
+              s2           <- cl.status(addProductsRequest)
+              makeOrderBody = OrderCreateDto(List(OrderProductDto(id.toString, 10)), "Minsk")
+              makeOrderRequest = Request[IO](method = POST, uri = orderAPIAddress)
+                .addCookie(clientCookie.name, clientCookie.content)
+                .withEntity(makeOrderBody)
+              orderId           <- cl.fetchAs[UUID](makeOrderRequest)
+              createDeliveryBody = DeliveryCreateDto(orderId.toString)
+              createDeliveryRequest = Request[IO](method = POST, uri = deliveryAPIAddress)
+                .addCookie(courierCookie.name, courierCookie.content)
+                .withEntity(createDeliveryBody)
+              s3 <- cl.status(createDeliveryRequest)
+              cancelOrderRequest = Request[IO](method = PUT, uri = orderAPIAddress / orderId.toString)
+                .addCookie(clientCookie.name, clientCookie.content)
+              status <- cl.status(cancelOrderRequest)
+              deliveredRequest = Request[IO](method = PUT, uri = deliveryAPIAddress / orderId.toString)
+                .addCookie(courierCookie.name, courierCookie.content)
+              s6 <- cl.status(deliveredRequest)
+              deleteGroupRequest = Request[IO](method = DELETE, uri = groupAPIAddress / groupId.toString)
+                .addCookie(managerCookie.name, managerCookie.content)
+              s4 <- cl.status(deleteGroupRequest)
+              deleteRequest = Request[IO](method = DELETE, uri = productAPIAddress / id.toString)
+                .addCookie(managerCookie.name, managerCookie.content)
+              s5 <- cl.status(deleteRequest)
+            } yield {
+              assert(s1.isSuccess && s2.isSuccess && s3.isSuccess && s6.isSuccess && s4.isSuccess && s5.isSuccess)
+              assert(status == BadRequest)
+            }
+          })
+          .unsafeRunSync()
+      }
+
+      it("should return BadRequestError if there are duplicated product ids in order") {
+        val makeOrderBody = OrderCreateDto(
+          List(
+            OrderProductDto("7befac6d-9e68-4064-927c-b9700438fea1", 10),
+            OrderProductDto("7befac6d-9e68-4064-927c-b9700438fea1", 10)
+          ),
+          "Minsk"
+        )
+        val makeOrderRequest = Request[IO](method = POST, uri = orderAPIAddress)
           .addCookie(clientCookie.name, clientCookie.content)
-      client
-        .use(cl => {
+          .withEntity(makeOrderBody)
+        client.use(cl => {
           for {
-            status <- cl.status(cancelOrderRequest)
-          } yield assert(status == NotFound)
-        })
-        .unsafeRunSync()
-    }
-
-    it("should return BadRequestError if you try to cancel order that is in status Cancelled, Assigned, Delivered") {
-      val createProductBody = ProductCreateDto("testproduct", Category.Food, 1, 20f, None)
-      val request =
-        Request[IO](method = POST, uri = productAPIAddress)
-          .withEntity(createProductBody)
-          .addCookie(managerCookie.name, managerCookie.content)
-      val createGroupBody = GroupCreateDto("age18")
-      val createGroupRequest = Request[IO](method = POST, uri = groupAPIAddress)
-        .withEntity(createGroupBody)
-        .addCookie(managerCookie.name, managerCookie.content)
-      client
-        .use(cl => {
-          for {
-            id              <- cl.fetchAs[UUID](request)
-            groupId         <- cl.fetchAs[UUID](createGroupRequest)
-            groupWithUser    = GroupWithUsersDto(groupId.toString, List(clientUserId))
-            groupWithProduct = GroupWithProductsDto(groupId.toString, List(id.toString))
-            addUsersRequest = Request[IO](method = POST, uri = groupAPIAddress / "users")
-              .withEntity(groupWithUser)
-              .addCookie(managerCookie.name, managerCookie.content)
-            s1 <- cl.status(addUsersRequest)
-            addProductsRequest = Request[IO](method = POST, uri = groupAPIAddress / "products")
-              .addCookie(managerCookie.name, managerCookie.content)
-              .withEntity(groupWithProduct)
-            s2           <- cl.status(addProductsRequest)
-            makeOrderBody = OrderCreateDto(List(OrderProductDto(id.toString, 10)), "Minsk")
-            makeOrderRequest = Request[IO](method = POST, uri = orderAPIAddress)
-              .addCookie(clientCookie.name, clientCookie.content)
-              .withEntity(makeOrderBody)
-            orderId           <- cl.fetchAs[UUID](makeOrderRequest)
-            createDeliveryBody = DeliveryCreateDto(orderId.toString)
-            createDeliveryRequest = Request[IO](method = POST, uri = deliveryAPIAddress)
-              .addCookie(courierCookie.name, courierCookie.content)
-              .withEntity(createDeliveryBody)
-            s3 <- cl.status(createDeliveryRequest)
-            cancelOrderRequest = Request[IO](method = PUT, uri = orderAPIAddress / orderId.toString)
-              .addCookie(clientCookie.name, clientCookie.content)
-            status <- cl.status(cancelOrderRequest)
-            deliveredRequest = Request[IO](method = PUT, uri = deliveryAPIAddress / orderId.toString)
-              .addCookie(courierCookie.name, courierCookie.content)
-            s6 <- cl.status(deliveredRequest)
-            deleteGroupRequest = Request[IO](method = DELETE, uri = groupAPIAddress / groupId.toString)
-              .addCookie(managerCookie.name, managerCookie.content)
-            s4 <- cl.status(deleteGroupRequest)
-            deleteRequest = Request[IO](method = DELETE, uri = productAPIAddress / id.toString)
-              .addCookie(managerCookie.name, managerCookie.content)
-            s5 <- cl.status(deleteRequest)
-          } yield {
-            assert(s1.isSuccess && s2.isSuccess && s3.isSuccess && s6.isSuccess && s4.isSuccess && s5.isSuccess)
-            assert(status == BadRequest)
-          }
-        })
-        .unsafeRunSync()
-    }
-
-    it("should return BadRequestError if there are duplicated product ids in order") {
-      val makeOrderBody = OrderCreateDto(
-        List(
-          OrderProductDto("7befac6d-9e68-4064-927c-b9700438fea1", 10),
-          OrderProductDto("7befac6d-9e68-4064-927c-b9700438fea1", 10)
-        ),
-        "Minsk"
-      )
-      val makeOrderRequest = Request[IO](method = POST, uri = orderAPIAddress)
-        .addCookie(clientCookie.name, clientCookie.content)
-        .withEntity(makeOrderBody)
-      client.use(cl => {
-        for {
-          status <- cl.status(makeOrderRequest)
-        } yield assert(status == BadRequest)
-      })
-    }
-
-    it("should return BadRequestError if there are not available or non-existing products") {
-      val createProductBody = ProductCreateDto("testproduct", Category.Food, 1, 20f, None)
-      val request =
-        Request[IO](method = POST, uri = productAPIAddress)
-          .withEntity(createProductBody)
-          .addCookie(managerCookie.name, managerCookie.content)
-      val createGroupBody = GroupCreateDto("age18")
-      val createGroupRequest = Request[IO](method = POST, uri = groupAPIAddress)
-        .withEntity(createGroupBody)
-        .addCookie(managerCookie.name, managerCookie.content)
-      client
-        .use(cl => {
-          for {
-            id              <- cl.fetchAs[UUID](request)
-            groupId         <- cl.fetchAs[UUID](createGroupRequest)
-            groupWithUser    = GroupWithUsersDto(groupId.toString, List(clientUserId))
-            groupWithProduct = GroupWithProductsDto(groupId.toString, List(id.toString))
-            addUsersRequest = Request[IO](method = POST, uri = groupAPIAddress / "users")
-              .withEntity(groupWithUser)
-              .addCookie(managerCookie.name, managerCookie.content)
-            s1 <- cl.status(addUsersRequest)
-            addProductsRequest = Request[IO](method = POST, uri = groupAPIAddress / "products")
-              .addCookie(managerCookie.name, managerCookie.content)
-              .withEntity(groupWithProduct)
-            s2 <- cl.status(addProductsRequest)
-            updateProductBody = ProductUpdateDto(
-              id.toString,
-              "testproduct",
-              Category.Food,
-              1,
-              20f,
-              "test update",
-              ProductStatus.InProcessing
-            )
-            updateRequest = Request[IO](method = PUT, uri = productAPIAddress)
-              .withEntity(updateProductBody)
-              .addCookie(managerCookie.name, managerCookie.content)
-            s3           <- cl.status(updateRequest)
-            makeOrderBody = OrderCreateDto(List(OrderProductDto(id.toString, 10)), "Minsk")
-            makeOrderRequest = Request[IO](method = POST, uri = orderAPIAddress)
-              .addCookie(clientCookie.name, clientCookie.content)
-              .withEntity(makeOrderBody)
             status <- cl.status(makeOrderRequest)
-            deleteGroupRequest = Request[IO](method = DELETE, uri = groupAPIAddress / groupId.toString)
-              .addCookie(managerCookie.name, managerCookie.content)
-            s4 <- cl.status(deleteGroupRequest)
-            deleteRequest = Request[IO](method = DELETE, uri = productAPIAddress / id.toString)
-              .addCookie(managerCookie.name, managerCookie.content)
-            s5 <- cl.status(deleteRequest)
-          } yield {
-            assert(s1.isSuccess && s2.isSuccess && s3.isSuccess && s4.isSuccess && s5.isSuccess)
-            assert(status == BadRequest)
-          }
-        })
-        .unsafeRunSync()
-    }
-
-    it("should return BadRequestError if you try to subscribe supplier/category that already exists") {
-      val subscribeCategoryBody = CategorySubscriptionDto(Category.Food)
-      val subscribeCategoryRequest =
-        Request[IO](method = POST, uri = subscriptionAPIAddress / "category")
-          .addCookie(clientCookie.name, clientCookie.content)
-          .withEntity(subscribeCategoryBody)
-      val subscribeSupplierBody = SupplierSubscriptionDto(1)
-      val subscribeSupplierRequest =
-        Request[IO](method = POST, uri = subscriptionAPIAddress / "supplier")
-          .addCookie(clientCookie.name, clientCookie.content)
-          .withEntity(subscribeSupplierBody)
-
-      val removeSupplierSubRequest =
-        Request[IO](method = DELETE, uri = subscriptionAPIAddress / "supplier")
-          .addCookie(clientCookie.name, clientCookie.content)
-          .withEntity(subscribeSupplierBody)
-      val removeCategorySubRequest =
-        Request[IO](method = DELETE, uri = subscriptionAPIAddress / "category")
-          .addCookie(clientCookie.name, clientCookie.content)
-          .withEntity(subscribeCategoryBody)
-      client
-        .use(cl => {
-          for {
-            s11 <- cl.status(subscribeCategoryRequest)
-            s1  <- cl.status(subscribeCategoryRequest)
-            s21 <- cl.status(subscribeSupplierRequest)
-            s2  <- cl.status(subscribeSupplierRequest)
-            s3  <- cl.status(removeSupplierSubRequest)
-            s4  <- cl.status(removeCategorySubRequest)
-          } yield {
-            assert(s11.isSuccess && s21.isSuccess && s3.isSuccess && s4.isSuccess)
-            assert(s1 == BadRequest && s2 == BadRequest)
-          }
-        })
-        .unsafeRunSync()
-    }
-
-    it("should return BadRequestError if you try to unsubscribe non-existing subscroption") {
-      val subscribeSupplierBody = SupplierSubscriptionDto(1)
-      val removeSupplierSubRequest =
-        Request[IO](method = DELETE, uri = subscriptionAPIAddress / "supplier")
-          .addCookie(clientCookie.name, clientCookie.content)
-          .withEntity(subscribeSupplierBody)
-
-      client
-        .use(cl => {
-          for {
-            status <- cl.status(removeSupplierSubRequest)
           } yield assert(status == BadRequest)
         })
-        .unsafeRunSync()
+      }
+
+      it("should return BadRequestError if there are not available or non-existing products") {
+        val createProductBody = ProductCreateDto("testproduct", Category.Food, 1, 20f, None)
+        val request =
+          Request[IO](method = POST, uri = productAPIAddress)
+            .withEntity(createProductBody)
+            .addCookie(managerCookie.name, managerCookie.content)
+        val createGroupBody = GroupCreateDto("age18")
+        val createGroupRequest = Request[IO](method = POST, uri = groupAPIAddress)
+          .withEntity(createGroupBody)
+          .addCookie(managerCookie.name, managerCookie.content)
+        client
+          .use(cl => {
+            for {
+              id              <- cl.fetchAs[UUID](request)
+              groupId         <- cl.fetchAs[UUID](createGroupRequest)
+              groupWithUser    = GroupWithUsersDto(groupId.toString, List(clientUserId))
+              groupWithProduct = GroupWithProductsDto(groupId.toString, List(id.toString))
+              addUsersRequest = Request[IO](method = POST, uri = groupAPIAddress / "users")
+                .withEntity(groupWithUser)
+                .addCookie(managerCookie.name, managerCookie.content)
+              s1 <- cl.status(addUsersRequest)
+              addProductsRequest = Request[IO](method = POST, uri = groupAPIAddress / "products")
+                .addCookie(managerCookie.name, managerCookie.content)
+                .withEntity(groupWithProduct)
+              s2 <- cl.status(addProductsRequest)
+              updateProductBody = ProductUpdateDto(
+                id.toString,
+                "testproduct",
+                Category.Food,
+                1,
+                20f,
+                "test update",
+                ProductStatus.InProcessing
+              )
+              updateRequest = Request[IO](method = PUT, uri = productAPIAddress)
+                .withEntity(updateProductBody)
+                .addCookie(managerCookie.name, managerCookie.content)
+              s3           <- cl.status(updateRequest)
+              makeOrderBody = OrderCreateDto(List(OrderProductDto(id.toString, 10)), "Minsk")
+              makeOrderRequest = Request[IO](method = POST, uri = orderAPIAddress)
+                .addCookie(clientCookie.name, clientCookie.content)
+                .withEntity(makeOrderBody)
+              status <- cl.status(makeOrderRequest)
+              deleteGroupRequest = Request[IO](method = DELETE, uri = groupAPIAddress / groupId.toString)
+                .addCookie(managerCookie.name, managerCookie.content)
+              s4 <- cl.status(deleteGroupRequest)
+              deleteRequest = Request[IO](method = DELETE, uri = productAPIAddress / id.toString)
+                .addCookie(managerCookie.name, managerCookie.content)
+              s5 <- cl.status(deleteRequest)
+            } yield {
+              assert(s1.isSuccess && s2.isSuccess && s3.isSuccess && s4.isSuccess && s5.isSuccess)
+              assert(status == BadRequest)
+            }
+          })
+          .unsafeRunSync()
+      }
+
     }
 
-    it("should return NotFoundError if you try to subscribe non-existing supplier/category") {
-      val subscribeSupplierBody = SupplierSubscriptionDto(10)
-      val subscribeSupplierRequest =
-        Request[IO](method = POST, uri = subscriptionAPIAddress / "supplier")
-          .addCookie(clientCookie.name, clientCookie.content)
-          .withEntity(subscribeSupplierBody)
+    describe("subscription limitations") {
+      it("should return BadRequestError if you try to subscribe supplier/category that already exists") {
+        val subscribeCategoryBody = CategorySubscriptionDto(Category.Food)
+        val subscribeCategoryRequest =
+          Request[IO](method = POST, uri = subscriptionAPIAddress / "category")
+            .addCookie(clientCookie.name, clientCookie.content)
+            .withEntity(subscribeCategoryBody)
+        val subscribeSupplierBody = SupplierSubscriptionDto(1)
+        val subscribeSupplierRequest =
+          Request[IO](method = POST, uri = subscriptionAPIAddress / "supplier")
+            .addCookie(clientCookie.name, clientCookie.content)
+            .withEntity(subscribeSupplierBody)
 
-      client
-        .use(cl => {
-          for {
-            status <- cl.status(subscribeSupplierRequest)
-          } yield assert(status == NotFound)
-        })
-        .unsafeRunSync()
+        val removeSupplierSubRequest =
+          Request[IO](method = DELETE, uri = subscriptionAPIAddress / "supplier")
+            .addCookie(clientCookie.name, clientCookie.content)
+            .withEntity(subscribeSupplierBody)
+        val removeCategorySubRequest =
+          Request[IO](method = DELETE, uri = subscriptionAPIAddress / "category")
+            .addCookie(clientCookie.name, clientCookie.content)
+            .withEntity(subscribeCategoryBody)
+        client
+          .use(cl => {
+            for {
+              s11 <- cl.status(subscribeCategoryRequest)
+              s1  <- cl.status(subscribeCategoryRequest)
+              s21 <- cl.status(subscribeSupplierRequest)
+              s2  <- cl.status(subscribeSupplierRequest)
+              s3  <- cl.status(removeSupplierSubRequest)
+              s4  <- cl.status(removeCategorySubRequest)
+            } yield {
+              assert(s11.isSuccess && s21.isSuccess && s3.isSuccess && s4.isSuccess)
+              assert(s1 == BadRequest && s2 == BadRequest)
+            }
+          })
+          .unsafeRunSync()
+      }
+
+      it("should return BadRequestError if you try to unsubscribe non-existing subscroption") {
+        val subscribeSupplierBody = SupplierSubscriptionDto(1)
+        val removeSupplierSubRequest =
+          Request[IO](method = DELETE, uri = subscriptionAPIAddress / "supplier")
+            .addCookie(clientCookie.name, clientCookie.content)
+            .withEntity(subscribeSupplierBody)
+
+        client
+          .use(cl => {
+            for {
+              status <- cl.status(removeSupplierSubRequest)
+            } yield assert(status == BadRequest)
+          })
+          .unsafeRunSync()
+      }
+
+      it("should return NotFoundError if you try to subscribe non-existing supplier/category") {
+        val subscribeSupplierBody = SupplierSubscriptionDto(10)
+        val subscribeSupplierRequest =
+          Request[IO](method = POST, uri = subscriptionAPIAddress / "supplier")
+            .addCookie(clientCookie.name, clientCookie.content)
+            .withEntity(subscribeSupplierBody)
+
+        client
+          .use(cl => {
+            for {
+              status <- cl.status(subscribeSupplierRequest)
+            } yield assert(status == NotFound)
+          })
+          .unsafeRunSync()
+      }
     }
   }
 }
