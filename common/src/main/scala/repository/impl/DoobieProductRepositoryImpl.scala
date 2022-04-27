@@ -64,7 +64,7 @@ class DoobieProductRepositoryImpl[F[_]: Async](tx: Transactor[F]) extends Produc
     val fragment = updateProductQuery ++
       set(
         fr"name = ${product.name}",
-        fr"category_id = ${product.category}",
+        fr"category_id = ${product.categoryId}",
         fr"supplier_id = ${product.supplierId}",
         fr"price = ${product.price}",
         fr"description = ${product.description}",
@@ -128,7 +128,7 @@ class DoobieProductRepositoryImpl[F[_]: Async](tx: Transactor[F]) extends Produc
   override def searchByCriteria(user: AuthorizedUserDomain, criteria: CriteriaDomain): F[List[ProductReadDomain]] = {
     for {
       products <-
-        (getProductsQuery ++ fr" INNER JOIN category AS c ON c.id=p.category_id " ++ findUserInGroupQuery ++ fr" WHERE user_id = ${user.id}::UUID))" ++ fr" AND " ++ andOpt(
+        (getProductsQuery ++ findUserInGroupQuery ++ fr" WHERE user_id = ${user.id}::UUID))" ++ fr" AND " ++ andOpt(
           criteria.name.map(value => fr"p.name LIKE $value"),
           criteria.categoryName.map(value => fr"c.name LIKE $value"),
           criteria.description.map(value => fr"p.description LIKE $value"),

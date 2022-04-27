@@ -9,11 +9,12 @@ import dto.attachment.AttachmentCreateDto
 import dto.criteria.CriteriaDto
 import dto.product.{ProductCreateDto, ProductReadDto, ProductUpdateDto}
 import error.attachment.AttachmentError.{AttachmentExists, AttachmentNotFound}
+import error.category.CategoryError.CategoryNotFound
 import error.general.GeneralError
 import error.product.ProductError.{DeclineDeleteProduct, ProductExists, ProductNotFound}
 import error.supplier.SupplierError.SupplierNotFound
 import logger.LogHandler
-import repository.{OrderRepository, ProductRepository, SupplierRepository}
+import repository.{CategoryRepository, OrderRepository, ProductRepository, SupplierRepository}
 import service.ProductService
 import util.ConvertToErrorsUtil._
 import util.ConvertToErrorsUtil.instances._
@@ -31,6 +32,7 @@ class ProductServiceImpl[F[_]: Monad](
   productRep:         ProductRepository[F],
   supplierRepository: SupplierRepository[F],
   orderRepository:    OrderRepository[F],
+  categoryRepository: CategoryRepository[F],
   logHandler:         LogHandler[F]
 ) extends ProductService[F] {
   override def addProduct(productDto: ProductCreateDto): F[ErrorsOr[UUID]] = {
@@ -41,6 +43,10 @@ class ProductServiceImpl[F[_]: Monad](
       _ <- EitherT.fromOptionF(
         supplierRepository.getById(product.supplierId),
         Chain[GeneralError](SupplierNotFound(product.supplierId.value))
+      )
+      _ <- EitherT.fromOptionF(
+        categoryRepository.getById(product.categoryId),
+        Chain[GeneralError](CategoryNotFound(product.categoryId.value))
       )
       _     <- logHandler.debug(s"Supplier found ").toErrorsOr
       check <- productRep.checkUniqueProduct(product.name.value, product.supplierId.value).toErrorsOr
@@ -67,6 +73,10 @@ class ProductServiceImpl[F[_]: Monad](
       _ <- EitherT.fromOptionF(
         supplierRepository.getById(domain.supplierId),
         Chain[GeneralError](SupplierNotFound(domain.supplierId.value))
+      )
+      _ <- EitherT.fromOptionF(
+        categoryRepository.getById(domain.categoryId),
+        Chain[GeneralError](CategoryNotFound(domain.categoryId.value))
       )
       _     <- logHandler.debug(s"Supplier found ").toErrorsOr
       check <- productRep.checkUniqueProduct(domain.name.value, domain.supplierId.value).toErrorsOr

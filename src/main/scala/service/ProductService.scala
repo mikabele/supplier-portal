@@ -6,7 +6,7 @@ import dto.attachment.AttachmentCreateDto
 import dto.criteria.CriteriaDto
 import dto.product.{ProductCreateDto, ProductReadDto, ProductUpdateDto}
 import logger.LogHandler
-import repository.{OrderRepository, ProductRepository, SupplierRepository}
+import repository.{CategoryRepository, OrderRepository, ProductRepository, SupplierRepository}
 import service.impl.ProductServiceImpl
 import util.ConvertToErrorsUtil.ErrorsOr
 
@@ -27,8 +27,9 @@ object ProductService {
     productRepository:  ProductRepository[F],
     supplierRepository: SupplierRepository[F],
     orderRepository:    OrderRepository[F],
+    categoryRepository: CategoryRepository[F],
     logHandler:         LogHandler[F]
   ): ProductService[F] = {
-    new ProductServiceImpl[F](productRepository, supplierRepository, orderRepository, logHandler)
+    new ProductServiceImpl[F](productRepository, supplierRepository, orderRepository, categoryRepository, logHandler)
   }
 }

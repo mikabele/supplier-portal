@@ -11,7 +11,7 @@ import service.EmailNotificationService
 
 object EmailNotificator extends IOApp {
   override def run(args: List[String]): IO[ExitCode] = {
-    notificatorResource[IO]().use(n => n.start).as(ExitCode.Success)
+    notificatorResource[IO]().use(n => n.start()).as(ExitCode.Success)
   }
 
   def notificatorResource[F[+_]: Async: Timer: ContextShift](
@@ -33,7 +33,7 @@ object EmailNotificator extends IOApp {
         (s: String) => logger.debug(s).pure[F],
         (s: String) => logger.error(s).pure[F]
       )
-      notificator = EmailNotificationService(
+      notificator = EmailNotificationService.of(
         conf.email,
         productRepository,
         userRepository,

@@ -1,7 +1,7 @@
 package repository
 
 import cats.effect.Async
-import domain.category.Category
+import domain.category.CategoryDomain
 import domain.subscription.{CategorySubscriptionDomain, SupplierSubscriptionDomain}
 import domain.supplier.SupplierDomain
 import domain.user.AuthorizedUserDomain
@@ -13,7 +13,7 @@ trait SubscriptionRepository[F[_]] {
 
   def getSupplierSubscriptions(user: AuthorizedUserDomain): F[List[SupplierDomain]]
 
-  def getCategorySubscriptions(user: AuthorizedUserDomain): F[List[Category]]
+  def getCategorySubscriptions(user: AuthorizedUserDomain): F[List[CategoryDomain]]
 
   def removeSupplierSubscription(user: AuthorizedUserDomain, supplier: SupplierSubscriptionDomain): F[Int]
 

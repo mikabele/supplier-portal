@@ -34,6 +34,7 @@ object AppContext {
       orderRepository        = OrderRepository.of(tx)
       subscriptionRepository = SubscriptionRepository.of(tx)
       deliveryRepository     = DeliveryRepository.of(tx)
+      categoryRepository     = CategoryRepository.of(tx)
 
       logger = LogManager.getLogger("root")
       logHandler = LogHandler.of(
@@ -53,10 +54,17 @@ object AppContext {
       )
       productGroupAuthedRoutes = ProductGroupController.authedRoutes(productGroupService)
 
-      productService      = ProductService.of(productRepository, supplierRepository, orderRepository, logHandler)
+      productService = ProductService.of(
+        productRepository,
+        supplierRepository,
+        orderRepository,
+        categoryRepository,
+        logHandler
+      )
       productAuthedRoutes = ProductController.authedRoutes[F](productService)
 
-      subscriptionService      = SubscriptionService.of[F](subscriptionRepository, supplierRepository, logHandler)
+      subscriptionService = SubscriptionService
+        .of[F](subscriptionRepository, supplierRepository, categoryRepository, logHandler)
       subscriptionAuthedRoutes = SubscriptionController.authedRoutes[F](subscriptionService)
 
       orderService      = OrderService.of(orderRepository, productRepository, logHandler)
@@ -65,11 +73,11 @@ object AppContext {
       deliveryService      = DeliveryService.of(deliveryRepository, orderRepository, logHandler)
       deliveryAuthedRoutes = DeliveryController.authedRoutes(deliveryService)
 
-      authUser = Kleisli(authenticationService.retrieveUser): Kleisli[
+      authUser: Kleisli[
         F,
         Request[F],
         Either[String, AuthorizedUserDomain]
-      ]
+      ]          = Kleisli(authenticationService.retrieveUser)
       onFailure  = Kleisli(req => OptionT.liftF(Forbidden(req.context))): AuthedRoutes[String, F]
       middleware = AuthMiddleware(authUser, onFailure)
 

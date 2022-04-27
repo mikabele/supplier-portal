@@ -3,6 +3,7 @@ package util
 import cats.data.{NonEmptyList, ValidatedNec}
 import cats.syntax.all._
 import domain.attachment._
+import domain.category.CategoryDomain
 import domain.criteria._
 import domain.delivery._
 import domain.group._
@@ -12,6 +13,7 @@ import domain.subscription._
 import domain.supplier._
 import domain.user._
 import dto.attachment._
+import dto.category.CategoryDto
 import dto.criteria._
 import dto.delivery._
 import dto.group._
@@ -74,7 +76,7 @@ object ModelMapper {
     def createProductDomainToDto(product: ProductCreateDomain): ProductCreateDto = {
       ProductCreateDto(
         product.name.value,
-        product.categoryId,
+        product.categoryId.value,
         product.supplierId.value,
         product.price.value,
         product.description
@@ -85,7 +87,7 @@ object ModelMapper {
       ProductUpdateDto(
         product.id.value,
         product.name.value,
-        product.category,
+        product.categoryId.value,
         product.supplierId.value,
         product.price.value,
         product.description,
@@ -101,7 +103,7 @@ object ModelMapper {
       ProductReadDto(
         product.id.value,
         product.name.value,
-        product.category,
+        categoryDomainToDto(product.category),
         supplierDomainToDto(product.supplier),
         product.price.value,
         product.description,
@@ -123,6 +125,13 @@ object ModelMapper {
         supplier.id.value,
         supplier.name.value,
         supplier.address.value
+      )
+    }
+
+    def categoryDomainToDto(domain: CategoryDomain): CategoryDto = {
+      CategoryDto(
+        domain.id.value,
+        domain.name.value
       )
     }
 
@@ -220,9 +229,10 @@ object ModelMapper {
         refinedValidation(productDto.price)
       val name:     ValidatedNec[GeneralError, NonEmptyStr] = refinedValidation(productDto.name)
       val supplier: ValidatedNec[GeneralError, PositiveInt] = refinedValidation(productDto.supplierId)
+      val category: ValidatedNec[GeneralError, PositiveInt] = refinedValidation(productDto.categoryId)
       (
         name,
-        productDto.category.validNec,
+        category,
         supplier,
         price,
         productDto.description.traverse(_.validNec)
@@ -234,10 +244,11 @@ object ModelMapper {
       val name:       ValidatedNec[GeneralError, NonEmptyStr]      = refinedValidation(dto.name)
       val supplierId: ValidatedNec[GeneralError, PositiveInt]      = refinedValidation(dto.supplierId)
       val price:      ValidatedNec[GeneralError, NonNegativeFloat] = refinedValidation(dto.price)
+      val category:   ValidatedNec[GeneralError, PositiveInt]      = refinedValidation(dto.categoryId)
       (
         id,
         name,
-        dto.category.validNec,
+        category,
         supplierId,
         price,
         dto.description.validNec,
@@ -287,7 +298,8 @@ object ModelMapper {
     def validateCategorySubscriptionDto(
       dto: CategorySubscriptionDto
     ): ValidatedNec[GeneralError, CategorySubscriptionDomain] = {
-      dto.category.validNec[GeneralError].map(CategorySubscriptionDomain)
+      val category: ValidatedNec[GeneralError, PositiveInt] = refinedValidation(dto.categoryId)
+      category.map(CategorySubscriptionDomain)
     }
 
     def validateSupplierSubscriptionDto(
