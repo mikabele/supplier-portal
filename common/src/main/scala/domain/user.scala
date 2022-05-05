@@ -1,5 +1,7 @@
 package domain
 
+import domain.category.CategoryDomain
+import domain.supplier.SupplierDomain
 import doobie.postgres.implicits._
 import enumeratum.EnumEntry.Snakecase
 import enumeratum.{CirceEnum, DoobieEnum, EnumEntry, _}
@@ -37,5 +39,17 @@ object user {
     role:    Role,
     phone:   PhoneStr,
     email:   EmailStr
+  )
+
+  final case class ClientDomain(
+    id:           UuidStr,
+    email:        EmailStr,
+    categorySubs: List[CategoryDomain],
+    supplierSubs: List[SupplierDomain]
+  )
+
+  final case class ClientDbDomain(
+    id:    UuidStr,
+    email: EmailStr
   )
 }

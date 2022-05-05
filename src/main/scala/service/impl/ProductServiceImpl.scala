@@ -2,6 +2,7 @@ package service.impl
 
 import cats.Monad
 import cats.data.{Chain, EitherT, NonEmptyList}
+import cats.Monoid
 import cats.syntax.all._
 import domain.product.ProductStatus
 import domain.user.AuthorizedUserDomain
@@ -13,6 +14,7 @@ import error.category.CategoryError.CategoryNotFound
 import error.general.GeneralError
 import error.product.ProductError.{DeclineDeleteProduct, ProductExists, ProductNotFound}
 import error.supplier.SupplierError.SupplierNotFound
+import kafka.KafkaProducerService
 import logger.LogHandler
 import repository.{CategoryRepository, OrderRepository, ProductRepository, SupplierRepository}
 import service.ProductService
@@ -29,11 +31,12 @@ import util.ModelMapper.DtoToDomain.{
 import java.util.UUID
 
 class ProductServiceImpl[F[_]: Monad](
-  productRep:         ProductRepository[F],
-  supplierRepository: SupplierRepository[F],
-  orderRepository:    OrderRepository[F],
-  categoryRepository: CategoryRepository[F],
-  logHandler:         LogHandler[F]
+  productRep:                  ProductRepository[F],
+  supplierRepository:          SupplierRepository[F],
+  orderRepository:             OrderRepository[F],
+  categoryRepository:          CategoryRepository[F],
+  logHandler:                  LogHandler[F],
+  productKafkaProducerService: KafkaProducerService[F, String, UUID]
 ) extends ProductService[F] {
   override def addProduct(productDto: ProductCreateDto): F[ErrorsOr[UUID]] = {
     val res = for {
@@ -58,6 +61,8 @@ class ProductServiceImpl[F[_]: Monad](
       )
       id <- productRep.addProduct(product).toErrorsOr
       _  <- logHandler.debug(s"Product added").toErrorsOr
+      _  <- productKafkaProducerService.send(Monoid[String].empty, id).toErrorsOr
+      _  <- logHandler.debug(s"Send product with id to Kafka: $id").toErrorsOr
     } yield id
 
     res.value
@@ -89,6 +94,8 @@ class ProductServiceImpl[F[_]: Monad](
       count <- productRep.updateProduct(domain).toErrorsOr
       _     <- EitherT.cond(count > 0, count, Chain[GeneralError](ProductNotFound(domain.id.value)))
       _     <- logHandler.debug(s"Product updated").toErrorsOr
+      _     <- productKafkaProducerService.send(Monoid[String].empty, UUID.fromString(domain.id.value)).toErrorsOr
+      _     <- logHandler.debug(s"Send updated product with id to Kafka: ${domain.id.value}").toErrorsOr
     } yield updateProductDomainToDto(domain)
 
     res.value
@@ -122,7 +129,7 @@ class ProductServiceImpl[F[_]: Monad](
       _          <- logHandler.debug(s"Start validation : AttachmentCreateDto").toErrorsOr
       attachment <- validateAttachmentDto(attachmentDto).toErrorsOr(fromValidatedNec)
       _          <- logHandler.debug(s"Validation finished : AttachmentCreateDto").toErrorsOr
-      products   <- productRep.getByIds(NonEmptyList.of(attachment.productId)).toErrorsOr
+      products   <- productRep.getByIds(NonEmptyList.of(UUID.fromString(attachment.productId.value))).toErrorsOr
       _          <- logHandler.debug(s"Products in DB : $products").toErrorsOr
       product <- EitherT.fromOption(
         products.headOption,

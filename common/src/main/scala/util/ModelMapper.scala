@@ -400,5 +400,20 @@ object ModelMapper {
         )
       )
     }
+
+    def joinClientsWithSubscriptions(
+      clients: List[ClientDbDomain],
+      cats:    List[CategorySubscriptionReadDomain],
+      sups:    List[SupplierSubscriptionReadDomain]
+    ): List[ClientDomain] = {
+      clients.map(client =>
+        ClientDomain(
+          client.id,
+          client.email,
+          cats.filter(_.clientId == client.id).map(_.category),
+          sups.filter(_.clientId == client.id).map(_.supplier)
+        )
+      )
+    }
   }
 }

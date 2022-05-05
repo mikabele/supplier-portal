@@ -15,7 +15,6 @@ import doobie.util.fragment.Fragment
 import doobie.util.fragments._
 import repository.ProductRepository
 import repository.impl.logger.logger._
-import types.UuidStr
 import util.ModelMapper.DbModelMapper._
 
 import java.util.UUID
@@ -146,10 +145,9 @@ class DoobieProductRepositoryImpl[F[_]: Async](tx: Transactor[F]) extends Produc
   }
 
   // technical method - use in order and group services
-  override def getByIds(ids: NonEmptyList[UuidStr]): F[List[ProductReadDomain]] = {
-    val modifiedIds = ids.map(id => UUID.fromString(id.value))
+  override def getByIds(ids: NonEmptyList[UUID]): F[List[ProductReadDomain]] = {
     for {
-      products <- (getProductsQuery ++ fr" WHERE " ++ in(fr"p.id", modifiedIds))
+      products <- (getProductsQuery ++ fr" WHERE " ++ in(fr"p.id", ids))
         .query[ProductReadDbDomain]
         .to[List]
         .transact(tx)

@@ -5,6 +5,7 @@ import domain.user.AuthorizedUserDomain
 import dto.attachment.AttachmentCreateDto
 import dto.criteria.CriteriaDto
 import dto.product.{ProductCreateDto, ProductReadDto, ProductUpdateDto}
+import kafka.KafkaProducerService
 import logger.LogHandler
 import repository.{CategoryRepository, OrderRepository, ProductRepository, SupplierRepository}
 import service.impl.ProductServiceImpl
@@ -24,12 +25,20 @@ trait ProductService[F[_]] {
 
 object ProductService {
   def of[F[_]: Sync](
-    productRepository:  ProductRepository[F],
-    supplierRepository: SupplierRepository[F],
-    orderRepository:    OrderRepository[F],
-    categoryRepository: CategoryRepository[F],
-    logHandler:         LogHandler[F]
+    productRepository:           ProductRepository[F],
+    supplierRepository:          SupplierRepository[F],
+    orderRepository:             OrderRepository[F],
+    categoryRepository:          CategoryRepository[F],
+    logHandler:                  LogHandler[F],
+    productKafkaProducerService: KafkaProducerService[F, String, UUID]
   ): ProductService[F] = {
-    new ProductServiceImpl[F](productRepository, supplierRepository, orderRepository, categoryRepository, logHandler)
+    new ProductServiceImpl[F](
+      productRepository,
+      supplierRepository,
+      orderRepository,
+      categoryRepository,
+      logHandler,
+      productKafkaProducerService
+    )
   }
 }
