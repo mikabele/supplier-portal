@@ -1,5 +1,6 @@
 package service
 
+import cats.Monad
 import cats.effect.Sync
 import domain.user.AuthorizedUserDomain
 import dto.category.CategoryDto
@@ -20,11 +21,12 @@ trait SubscriptionService[F[_]] {
 }
 
 object SubscriptionService {
-  def of[F[_]: Sync](
+  def of[F[_]: Sync: Monad](
     subscriptionRepository: SubscriptionRepository[F],
     supplierRepository:     SupplierRepository[F],
-    categoryRepository:     CategoryRepository[F],
-    logHandler:             LogHandler[F]
+    categoryRepository:     CategoryRepository[F]
+  )(
+    implicit logHandler: LogHandler[F]
   ): SubscriptionService[F] = {
     new SubscriptionServiceImpl[F](subscriptionRepository, supplierRepository, categoryRepository, logHandler)
   }

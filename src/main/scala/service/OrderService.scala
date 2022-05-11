@@ -21,8 +21,9 @@ trait OrderService[F[_]] {
 object OrderService {
   def of[F[_]: Sync](
     orderRepository:   OrderRepository[F],
-    productRepository: ProductRepository[F],
-    logHandler:        LogHandler[F]
+    productRepository: ProductRepository[F]
+  )(
+    implicit logHandler: LogHandler[F]
   ): OrderService[F] = {
     new OrderServiceImpl[F](orderRepository, productRepository, logHandler)
   }

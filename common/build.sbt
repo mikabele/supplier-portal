@@ -14,8 +14,8 @@ val monocleVersion     = "2.1.0"
 val refinedVersion     = "0.9.28"
 val enumeratumVersion  = "1.7.0"
 val loggerVersion      = "2.17.2"
-
-ThisBuild / versionScheme := Some("early-semver")
+//
+//ThisBuild / versionScheme := Some("early-semver")
 
 libraryDependencies ++= Seq(
   "eu.timepit"                %% "refined"           % refinedVersion,

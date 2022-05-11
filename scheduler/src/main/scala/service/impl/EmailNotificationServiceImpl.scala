@@ -1,7 +1,7 @@
 package service.impl
 
 import cats.data.NonEmptyList
-import cats.effect.{Async, Blocker, ContextShift, Timer}
+import cats.effect.{Async, ContextShift, Timer}
 import cats.syntax.all._
 import cats.{Monad, MonadError}
 import com.emarsys.scheduler.Schedule
@@ -13,8 +13,7 @@ import domain.product.ProductReadDomain
 import domain.supplier.SupplierDomain
 import domain.user.ClientDomain
 import emil.builder._
-import emil.javamail.JavaMailEmil
-import emil.{Mail, MailConfig, SSLType}
+import emil.{Emil, Mail, MailConfig, SSLType}
 import kafka.KafkaConsumerService
 import logger.LogHandler
 import repository.{ProductGroupRepository, ProductRepository, SubscriptionRepository, UserRepository}
@@ -26,18 +25,18 @@ import scala.concurrent.duration.DurationInt
 import scala.io.Source
 
 case class EmailNotificationServiceImpl[F[+_]: Async: Monad: MonadError[*[_], Throwable]: Timer: ContextShift](
+  emil:                   Emil[F],
   notificatorConf:        EmailNotificatorConf,
   productRepository:      ProductRepository[F],
   userRepository:         UserRepository[F],
   subscriptionRepository: SubscriptionRepository[F],
   groupRepository:        ProductGroupRepository[F],
-  be:                     Blocker,
   logger:                 LogHandler[F],
   productKafkaConsumer:   KafkaConsumerService[F, String, UUID]
 ) extends EmailNotificationService[F] {
 
   private val smtpConf = MailConfig(notificatorConf.url, notificatorConf.user, notificatorConf.password, SSLType.SSL)
-  private val myemil   = JavaMailEmil[F](be).apply(smtpConf)
+  private val emilRun  = emil(smtpConf)
 
   private val newProductBody =
     Source
@@ -144,7 +143,7 @@ case class EmailNotificationServiceImpl[F[+_]: Async: Monad: MonadError[*[_], Th
       newProducts  <- getProductsFromIds(newProductIds)
       _            <- logger.debug(s"New products in Kafka : $newProducts")
       mails        <- newProducts.map(nel => getMails(nel)).getOrElse(List.empty.pure[F])
-      _            <- mails.traverse(mail => myemil.send(mail))
+      _            <- mails.traverse(mail => emilRun.send(mail))
       _            <- logger.info(s"Last notification date : ${LocalDateTime.now()}")
     } yield ()
   } // receiving data from db , sending email

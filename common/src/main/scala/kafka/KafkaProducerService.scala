@@ -1,6 +1,7 @@
 package kafka
 
-import cats.effect.Async
+import cats.effect.{Async, Sync}
+import cats.syntax.all._
 import kafka.impl.KafkaProducerServiceImpl
 import org.apache.kafka.clients.producer.KafkaProducer
 import org.apache.kafka.common.serialization.Serializer
@@ -18,8 +19,9 @@ object KafkaProducerService {
   )(
     implicit keySerializer: Serializer[K],
     valueSerializer:        Serializer[V]
-  ): KafkaProducerService[F, K, V] = {
-    val kp = new KafkaProducer(kafkaProducerConfig.asJava, keySerializer, valueSerializer)
-    new KafkaProducerServiceImpl[F, K, V](kp, topic)
+  ): F[KafkaProducerServiceImpl[F, K, V]] = {
+    for {
+      kp <- Sync[F].delay(new KafkaProducer(kafkaProducerConfig.asJava, keySerializer, valueSerializer))
+    } yield new KafkaProducerServiceImpl[F, K, V](kp, topic)
   }
 }

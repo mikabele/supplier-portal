@@ -2,6 +2,7 @@ package kafka
 
 import cats.Monad
 import cats.effect.Async
+import cats.syntax.all._
 import kafka.impl.KafkaConsumerServiceImpl
 import org.apache.kafka.clients.consumer.{ConsumerRecord, KafkaConsumer}
 import org.apache.kafka.common.serialization.Deserializer
@@ -21,8 +22,9 @@ object KafkaConsumerService {
   )(
     implicit keyDeserializer: Deserializer[K],
     valueDeserializer:        Deserializer[V]
-  ): KafkaConsumerService[F, K, V] = {
-    val kc = new KafkaConsumer[K, V](kafkaConsumerConfig.asJava, keyDeserializer, valueDeserializer)
-    new KafkaConsumerServiceImpl[F, K, V](kc)
+  ): F[KafkaConsumerServiceImpl[F, K, V]] = {
+    for {
+      kc <- Async[F].delay(new KafkaConsumer[K, V](kafkaConsumerConfig.asJava, keyDeserializer, valueDeserializer))
+    } yield new KafkaConsumerServiceImpl[F, K, V](kc)
   }
 }

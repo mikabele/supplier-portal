@@ -29,8 +29,9 @@ object ProductService {
     supplierRepository:          SupplierRepository[F],
     orderRepository:             OrderRepository[F],
     categoryRepository:          CategoryRepository[F],
-    logHandler:                  LogHandler[F],
     productKafkaProducerService: KafkaProducerService[F, String, UUID]
+  )(
+    implicit logHandler: LogHandler[F]
   ): ProductService[F] = {
     new ProductServiceImpl[F](
       productRepository,
