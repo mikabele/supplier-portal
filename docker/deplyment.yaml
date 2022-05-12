@@ -1,0 +1,28 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: supplier-portal-deployument
+  labels:
+    app: supplier-portal
+    version: v1
+
+spec:
+  replicas: 3
+  selector:
+    matchlabels:
+      app: supplier-portal
+
+#template:
+#  metadata:
+#    labels:
+#      app: supplier-portal
+#  spec:
+#    containers:
+#      - name: webserver1
+#          image: nginx:1.6
+#          ports:
+#          - containerPort:80
+#      - name: database-server
+#          image: mysql-3.2
+#          ports:
+#          - containerPort:3306

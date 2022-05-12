@@ -1,0 +1,28 @@
+apiVersion: v1
+kind: Pod
+metadata:
+  name: supplier-portal
+  labels:
+    role: webserver-role
+    app: supplier-portal
+    version : v1
+spec:
+  containers:
+    - name: belevich_postgres14
+      image: postgres:14-alpine
+      ports:
+        - containerPort:5432
+      env:
+        - name: POSTGRES_DB
+          value : "supplier_portal"
+        - name : POSTGRES_PASSWORD
+          value : "admin"
+        - name : POSTGRES_USER
+          value : "postgres"
+        - name : SERVICE_NAME
+          value : "db"
+        - name : SERVICE_5432_NAME
+          value: "db"
+volumes:
+  - name: websvr-storage
+    emptyDir: {}

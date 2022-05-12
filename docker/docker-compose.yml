@@ -58,7 +58,7 @@ services:
   supplier_portal_server:
     build:
       context: .
-      dockerfile: sbt/Dockerfile
+      dockerfile: sbt/sbt_Dockerfile
     restart: always
     container_name: supplier_portal_server
     links:
@@ -82,7 +82,7 @@ services:
   supplier_portal_scheduler:
     build:
       context: .
-      dockerfile: sbt/Dockerfile
+      dockerfile: sbt/sbt_Dockerfile
     restart: always
     container_name: supplier_portal_scheduler
     links:
