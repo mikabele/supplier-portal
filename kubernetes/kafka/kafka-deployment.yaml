@@ -11,13 +11,12 @@ spec:
   selector:
     matchLabels:
       app: supplier-portal
-  strategy: RollingUpdate
   template:
     metadata:
       labels:
         app: supplier-portal
     spec:
-      initContainers:
+      containers:
         # zoo-keeper container inside pod
         - name: zoo1
           env:
@@ -31,8 +30,6 @@ spec:
           ports:
             - containerPort: 2181
           resources: {}
-          hostname: zoo1
-          restartPolicy: Always
 
         - name: kafka1
           env:
@@ -63,6 +60,6 @@ spec:
             - containerPort: 9092
             - containerPort: 29092
           resources: {}
-          hostname: kafka1
-          restartPolicy: Never
+      hostname: kafka1
+      restartPolicy: Always
 status: {}
