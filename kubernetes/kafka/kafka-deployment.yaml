@@ -5,7 +5,7 @@ metadata:
     service: kafka
     app: supplier-portal
   name: kafka-deployment
-  namespace : supplier-portal-ns
+  #namespace: supplier-portal-ns
 spec:
   replicas: 1
   selector:
@@ -17,49 +17,41 @@ spec:
         app: supplier-portal
     spec:
       containers:
-        # zoo-keeper container inside pod
-        - name: zoo1
-          env:
-            - name: ZOO_MY_ID
-              value: "1"
-            - name: ZOO_PORT
-              value: "2181"
-            - name: ZOO_SERVERS
-              value: server.1=zoo1:2888:3888
-          image: zookeeper:3.4.9
-          ports:
-            - containerPort: 2181
-          resources: {}
-
         - name: kafka1
           env:
-                 - name: KAFKA_ADVERTISED_LISTENERS
-                   value: LISTENER_DOCKER_INTERNAL://127.0.0.1:29092,LISTENER_DOCKER_EXTERNAL://127.0.0.1:9092
-                 - name: KAFKA_BROKER_ID
-                   value: "1"
-                 - name: KAFKA_CREATE_TOPICS
-                   value: notification:1:1:compact
-                 - name: KAFKA_INTER_BROKER_LISTENER_NAME
-                   value: LISTENER_DOCKER_INTERNAL
-                 - name: KAFKA_LISTENER_SECURITY_PROTOCOL_MAP
-                   value: LISTENER_DOCKER_INTERNAL:PLAINTEXT,LISTENER_DOCKER_EXTERNAL:PLAINTEXT
-                 - name: KAFKA_LOG4J_LOGGERS
-                   value: kafka.controller=INFO,kafka.producer.async.DefaultEventHandler=INFO,state.change.logger=INFO
-                 - name: KAFKA_OFFSETS_TOPIC_REPLICATION_FACTOR
-                   value: "1"
-                 - name: KAFKA_ZOOKEEPER_CONNECT
-                   value: zoo1:2181
+            - name: KAFKA_ADVERTISED_LISTENERS
+              value: LISTENER_DOCKER_INTERNAL://127.0.0.1:29092,LISTENER_DOCKER_EXTERNAL://127.0.0.1:9092
+            - name: KAFKA_BROKER_ID
+              value: "1"
+            - name: KAFKA_CREATE_TOPICS
+              value: notification:1:1:compact
+            - name: KAFKA_INTER_BROKER_LISTENER_NAME
+              value: LISTENER_DOCKER_INTERNAL
+            - name: KAFKA_LISTENER_SECURITY_PROTOCOL_MAP
+              value: LISTENER_DOCKER_INTERNAL:PLAINTEXT,LISTENER_DOCKER_EXTERNAL:PLAINTEXT
+            - name: KAFKA_LOG4J_LOGGERS
+              value: kafka.controller=INFO,kafka.producer.async.DefaultEventHandler=INFO,state.change.logger=INFO
+            - name: KAFKA_OFFSETS_TOPIC_REPLICATION_FACTOR
+              value: "1"
+            - name: KAFKA_ZOOKEEPER_CONNECT
+              value: zoo1:2181
           image: confluentinc/cp-kafka:5.5.1
-          livenessProbe:
-            tcpSocket :
-              port: 9092
-            failureThreshold: 10
-            periodSeconds: 5
-            timeoutSeconds: 10
+          #          livenessProbe:
+          #            tcpSocket:
+          #              port: 9092
+          #            failureThreshold: 10
+          #            periodSeconds: 5
+          #            timeoutSeconds: 10
           ports:
             - containerPort: 9092
             - containerPort: 29092
-          resources: {}
+          resources: { }
+
+      initContainers:
+        # zoo-keeper container inside pod
+        - name: init-zoo
+          image: alpine:latest
+          command : ['sh','-c','for i in {1..100}; do sleep 1; if dig zoo1:2181; then exit 0; fi; done; exit 1']
       hostname: kafka1
       restartPolicy: Always
-status: {}
+status: { }

@@ -5,7 +5,7 @@ metadata:
     service: kafka1
     app : suplier-portal
   name: kafka1
-  namespace : supplier-portal-ns
+  #namespace : supplier-portal-ns
 spec:
   ports:
     - name: "9092"

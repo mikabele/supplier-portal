@@ -5,7 +5,7 @@ metadata:
     service: zoo1
     app: supplier-portal
   name: zoo1
-  namespace: supplier-portal-ns
+  #namespace: supplier-portal-ns
 spec:
   ports:
     - name: "2181"

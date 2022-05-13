@@ -1,0 +1,35 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  labels:
+    service: zoo-deployment
+    app: supplier-portal
+  name: zoo-deployment
+  #namespace: supplier-portal-ns
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app: supplier-portal
+  template:
+    metadata:
+      labels:
+        app: supplier-portal
+    spec:
+      containers:
+        # zoo-keeper container inside pod
+        - name: zoo1
+          env:
+            - name: ZOO_MY_ID
+              value: "1"
+            - name: ZOO_PORT
+              value: "2181"
+            - name: ZOO_SERVERS
+              value: server.1=zoo1:2888:3888
+          image: zookeeper:3.4.9
+          ports:
+            - containerPort: 2181
+          resources: { }
+      hostname: zoo1
+      restartPolicy: Always
+status: { }
