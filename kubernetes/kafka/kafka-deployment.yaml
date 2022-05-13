@@ -51,7 +51,7 @@ spec:
         # zoo-keeper container inside pod
         - name: init-zoo
           image: alpine:latest
-          command : ['sh','-c','for i in {1..100}; do sleep 1; if dig zoo1:2181; then exit 0; fi; done; exit 1']
+          command : ['sh','-c','for i in {1..100}; do sleep 1; if nc -z zoo1 2181 || exit -1; then exit 0; fi; done; exit 1']
       hostname: kafka1
       restartPolicy: Always
 status: { }
