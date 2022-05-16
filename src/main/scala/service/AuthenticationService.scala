@@ -16,7 +16,11 @@ trait AuthenticationService[F[_]] {
 }
 
 object AuthenticationService {
-  def of[F[_]: Sync](userRepository: UserRepository[F], logHandler: LogHandler[F]): AuthenticationService[F] = {
+  def of[F[_]: Sync](
+    userRepository: UserRepository[F]
+  )(
+    implicit logHandler: LogHandler[F]
+  ): AuthenticationService[F] = {
     new AuthenticationServiceImpl[F](userRepository, logHandler)
   }
 }

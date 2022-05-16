@@ -8,9 +8,15 @@ val circeVersion       = "0.14.1"
 val circeConfigVersion = "0.8.0"
 val doobieVersion      = "0.13.4"
 
+//lazy val root = RootProject(file("../."))
+//
+//lazy val common = Project(id = "common", base = file("/common")) //.dependsOn(root)
+//
+//lazy val scheduler = Project(id = "scheduler", base = file("/scheduler")).dependsOn(root, common)
+
 lazy val common = RootProject(file("../common"))
 
-lazy val root = Project(id = "scheduler", base = file(".")).dependsOn(common)
+lazy val scheduler = Project(id = "scheduler", base = file(".")).dependsOn(common)
 
 libraryDependencies ++= Seq(
   "org.scalatest"           %% "scalatest"            % "3.2.11" % "test",

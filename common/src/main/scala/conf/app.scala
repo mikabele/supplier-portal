@@ -18,16 +18,20 @@ object app {
   )
 
   final case class ServerConf(
-    host: String,
-    port: Int
+    host:               String,
+    port:               Int,
+    productTopicName:   String,
+    producerConfigPath: String
   )
 
   final case class EmailNotificatorConf(
-    url:      String,
-    email:    String,
-    user:     String,
-    password: String,
-    delay:    Int // in minutes
+    url:                String,
+    email:              String,
+    user:               String,
+    password:           String,
+    delay:              Int, //in minutes
+    productTopicName:   String,
+    pollingTimeout:     Int, //in seconds
+    consumerConfigPath: String
   )
-
 }

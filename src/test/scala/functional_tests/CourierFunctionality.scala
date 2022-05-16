@@ -1,7 +1,6 @@
 package functional_tests
 
 import cats.effect.{Async, ConcurrentEffect, ContextShift, IO, Resource, Timer}
-import domain.category.Category
 import domain.order.OrderStatus
 import dto.delivery.DeliveryCreateDto
 import dto.group.{GroupCreateDto, GroupWithProductsDto, GroupWithUsersDto}
@@ -67,7 +66,7 @@ class CourierFunctionality extends AnyFunSpec {
 
   describe("Courier") {
     it("should be able to browse orders with status Ordered, assign one of them and then delivered") {
-      val createProductBody = ProductCreateDto("testproduct", Category.Food, 1, 20f, None)
+      val createProductBody = ProductCreateDto("testproduct", 1, 1, 20f, None)
       val request =
         Request[IO](method = POST, uri = productAPIAddress)
           .withEntity(createProductBody)
@@ -148,7 +147,7 @@ class CourierFunctionality extends AnyFunSpec {
     }
 
     it("Will throw 400 Error when pick-up order if order has status differed from Ordered") {
-      val createProductBody = ProductCreateDto("testproduct", Category.Food, 1, 20f, None)
+      val createProductBody = ProductCreateDto("testproduct", 1, 1, 20f, None)
       val request =
         Request[IO](method = POST, uri = productAPIAddress)
           .withEntity(createProductBody)
@@ -198,7 +197,7 @@ class CourierFunctionality extends AnyFunSpec {
     }
 
     it("delivered: Will throw 400 Error if order has status differed from PickedUp") {
-      val createProductBody = ProductCreateDto("testproduct", Category.Food, 1, 20f, None)
+      val createProductBody = ProductCreateDto("testproduct", 1, 1, 20f, None)
       val request =
         Request[IO](method = POST, uri = productAPIAddress)
           .withEntity(createProductBody)

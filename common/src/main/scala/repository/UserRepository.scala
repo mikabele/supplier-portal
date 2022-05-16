@@ -2,11 +2,13 @@ package repository
 
 import cats.data.NonEmptyList
 import cats.effect.Async
-import domain.user.{AuthorizedUserDomain, NonAuthorizedUserDomain}
+import domain.user.{AuthorizedUserDomain, ClientDomain, NonAuthorizedUserDomain}
 import doobie.util.transactor.Transactor
 import repository.impl.DoobieUserRepositoryImpl
 
 trait UserRepository[F[_]] {
+  def getAllClientsWithSubscriptions(): F[List[ClientDomain]]
+
   def getAllClients(): F[List[AuthorizedUserDomain]] //technical method
 
   def tryGetUser(userDomain: NonAuthorizedUserDomain): F[Option[AuthorizedUserDomain]]

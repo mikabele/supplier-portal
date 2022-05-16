@@ -15,7 +15,6 @@ import doobie.util.fragment.Fragment
 import doobie.util.fragments._
 import repository.ProductRepository
 import repository.impl.logger.logger._
-import types.UuidStr
 import util.ModelMapper.DbModelMapper._
 
 import java.util.UUID
@@ -64,7 +63,7 @@ class DoobieProductRepositoryImpl[F[_]: Async](tx: Transactor[F]) extends Produc
     val fragment = updateProductQuery ++
       set(
         fr"name = ${product.name}",
-        fr"category_id = ${product.category}",
+        fr"category_id = ${product.categoryId}",
         fr"supplier_id = ${product.supplierId}",
         fr"price = ${product.price}",
         fr"description = ${product.description}",
@@ -128,7 +127,7 @@ class DoobieProductRepositoryImpl[F[_]: Async](tx: Transactor[F]) extends Produc
   override def searchByCriteria(user: AuthorizedUserDomain, criteria: CriteriaDomain): F[List[ProductReadDomain]] = {
     for {
       products <-
-        (getProductsQuery ++ fr" INNER JOIN category AS c ON c.id=p.category_id " ++ findUserInGroupQuery ++ fr" WHERE user_id = ${user.id}::UUID))" ++ fr" AND " ++ andOpt(
+        (getProductsQuery ++ findUserInGroupQuery ++ fr" WHERE user_id = ${user.id}::UUID))" ++ fr" AND " ++ andOpt(
           criteria.name.map(value => fr"p.name LIKE $value"),
           criteria.categoryName.map(value => fr"c.name LIKE $value"),
           criteria.description.map(value => fr"p.description LIKE $value"),
@@ -146,10 +145,9 @@ class DoobieProductRepositoryImpl[F[_]: Async](tx: Transactor[F]) extends Produc
   }
 
   // technical method - use in order and group services
-  override def getByIds(ids: NonEmptyList[UuidStr]): F[List[ProductReadDomain]] = {
-    val modifiedIds = ids.map(id => UUID.fromString(id.value))
+  override def getByIds(ids: NonEmptyList[UUID]): F[List[ProductReadDomain]] = {
     for {
-      products <- (getProductsQuery ++ fr" WHERE " ++ in(fr"p.id", modifiedIds))
+      products <- (getProductsQuery ++ fr" WHERE " ++ in(fr"p.id", ids))
         .query[ProductReadDbDomain]
         .to[List]
         .transact(tx)

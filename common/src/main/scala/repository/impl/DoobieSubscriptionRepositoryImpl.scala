@@ -1,7 +1,7 @@
 package repository.impl
 
 import cats.effect.Async
-import domain.category.Category
+import domain.category.CategoryDomain
 import domain.subscription.{CategorySubscriptionDomain, SupplierSubscriptionDomain}
 import domain.supplier.SupplierDomain
 import domain.user.AuthorizedUserDomain
@@ -19,14 +19,15 @@ class DoobieSubscriptionRepositoryImpl[F[_]: Async](tx: Transactor[F]) extends S
   private val checkSubscriptionQuery = fr"SELECT 1 WHERE NOT EXISTS ( SELECT 1 FROM "
   private val removeCategorySubQuery = fr"DELETE FROM category_subscription "
   private val removeSupplierSubQuery = fr"DELETE FROM supplier_subscription "
-  private val getCategorySubQuery    = fr"SELECT category_id FROM category_subscription "
+  private val getCategorySubQuery =
+    fr"SELECT c.id,c.name FROM category AS c INNER JOIN category_subscription AS cs ON c.id=cs.category_id"
   private val getSupplierSubQuery =
     fr"SELECT s.id,s.name,s.address FROM supplier AS s INNER JOIN supplier_subscription AS ss ON s.id=ss.supplier_id "
 
   private val updateLastNotificationDateQuery = fr"UPDATE last_notification SET last_date = CURRENT_TIMESTAMP"
 
   override def subscribeCategory(user: AuthorizedUserDomain, category: CategorySubscriptionDomain): F[Int] = {
-    (subscribeCategoryQuery ++ fr"(${category.category}, ${user.id}::UUID)").update.run
+    (subscribeCategoryQuery ++ fr"(${category.categoryId}, ${user.id}::UUID)").update.run
       .transact(tx)
   }
 
@@ -38,7 +39,7 @@ class DoobieSubscriptionRepositoryImpl[F[_]: Async](tx: Transactor[F]) extends S
     user:     AuthorizedUserDomain,
     category: CategorySubscriptionDomain
   ): F[Option[Int]] = {
-    (checkSubscriptionQuery ++ fr"category_subscription WHERE user_id=${user.id}::UUID AND category_id=${category.category})")
+    (checkSubscriptionQuery ++ fr"category_subscription WHERE user_id=${user.id}::UUID AND category_id=${category.categoryId})")
       .query[Int]
       .option
       .transact(tx)
@@ -60,7 +61,7 @@ class DoobieSubscriptionRepositoryImpl[F[_]: Async](tx: Transactor[F]) extends S
   }
 
   override def removeCategorySubscription(user: AuthorizedUserDomain, category: CategorySubscriptionDomain): F[Int] = {
-    (removeCategorySubQuery ++ fr" WHERE user_id=${user.id}::UUID AND category_id=${category.category}").update.run
+    (removeCategorySubQuery ++ fr" WHERE user_id=${user.id}::UUID AND category_id=${category.categoryId}").update.run
       .transact(tx)
   }
 
@@ -68,8 +69,8 @@ class DoobieSubscriptionRepositoryImpl[F[_]: Async](tx: Transactor[F]) extends S
     (getSupplierSubQuery ++ fr" WHERE ss.user_id = ${user.id}::UUID").query[SupplierDomain].to[List].transact(tx)
   }
 
-  override def getCategorySubscriptions(user: AuthorizedUserDomain): F[List[Category]] = {
-    (getCategorySubQuery ++ fr" WHERE user_id = ${user.id}::UUID").query[Category].to[List].transact(tx)
+  override def getCategorySubscriptions(user: AuthorizedUserDomain): F[List[CategoryDomain]] = {
+    (getCategorySubQuery ++ fr" WHERE cs.user_id = ${user.id}::UUID").query[CategoryDomain].to[List].transact(tx)
   }
 
   override def updateLastNotificationDate(): F[Int] = {

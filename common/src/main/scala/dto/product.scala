@@ -1,8 +1,8 @@
 package dto
 
-import domain.category.CategoryDomain
 import domain.product.ProductStatus
 import dto.attachment.AttachmentReadDto
+import dto.category.CategoryDto
 import dto.supplier.SupplierDto
 
 object product {
@@ -28,7 +28,7 @@ object product {
   final case class ProductReadDto(
     id:              String,
     name:            String,
-    category:        CategoryDomain,
+    category:        CategoryDto,
     supplier:        SupplierDto,
     price:           Float,
     description:     String,

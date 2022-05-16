@@ -30,8 +30,9 @@ object ProductGroupService {
   def of[F[_]: Sync](
     productGroupRepository: ProductGroupRepository[F],
     userRepository:         UserRepository[F],
-    productRepository:      ProductRepository[F],
-    logHandler:             LogHandler[F]
+    productRepository:      ProductRepository[F]
+  )(
+    implicit logHandler: LogHandler[F]
   ): ProductGroupService[F] = {
     new ProductGroupServiceImpl[F](productGroupRepository, userRepository, productRepository, logHandler)
   }

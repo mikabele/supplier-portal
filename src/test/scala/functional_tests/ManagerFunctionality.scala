@@ -1,9 +1,9 @@
 package functional_tests
 
 import cats.effect.{Async, ConcurrentEffect, ContextShift, IO, Resource, Timer}
-import domain.category.Category
 import domain.product.ProductStatus
 import dto.attachment.{AttachmentCreateDto, AttachmentReadDto}
+import dto.category.CategoryDto
 import dto.group.{GroupCreateDto, GroupReadDto, GroupWithProductsDto, GroupWithUsersDto}
 import dto.order.{OrderCreateDto, OrderProductDto}
 import dto.product.{ProductCreateDto, ProductReadDto, ProductUpdateDto}
@@ -64,12 +64,13 @@ class ManagerFunctionality extends AnyFunSpec with BeforeAndAfter {
   private val clientUserId = clientCookie.content.split("-", 3).last
 
   private val supplierDto = SupplierDto(1, "Mem", "Minsk")
+  private val categoryDto = CategoryDto(1, "food")
   private val dtf         = DateTimeFormatter.ofPattern("yyyy-MM-dd HH:mm:ss")
   private val dateNow     = dtf.format(LocalDateTime.now())
 
   describe("Manager") {
     it(s"can be able to create, update, read adn delete any products.") {
-      val createProductBody = ProductCreateDto("testproduct", Category.Food, 1, 20f, None)
+      val createProductBody = ProductCreateDto("testproduct", 1, 1, 20f, None)
       val request =
         Request[IO](method = POST, uri = productAPIAddress)
           .withEntity(createProductBody)
@@ -81,7 +82,7 @@ class ManagerFunctionality extends AnyFunSpec with BeforeAndAfter {
             updateProductBody = ProductUpdateDto(
               id.toString,
               "testproduct",
-              Category.Food,
+              1,
               1,
               20f,
               "test update",
@@ -98,7 +99,7 @@ class ManagerFunctionality extends AnyFunSpec with BeforeAndAfter {
               ProductReadDto(
                 id.toString,
                 "testproduct",
-                Category.Food,
+                categoryDto,
                 supplierDto,
                 20f,
                 "test update",
@@ -119,7 +120,7 @@ class ManagerFunctionality extends AnyFunSpec with BeforeAndAfter {
     }
 
     it("should be able to add, view and remove attachments") {
-      val createProductBody = ProductCreateDto("testproduct", Category.Food, 1, 20f, None)
+      val createProductBody = ProductCreateDto("testproduct", 1, 1, 20f, None)
       val createProductRequest =
         Request[IO](method = POST, uri = productAPIAddress)
           .withEntity(createProductBody)
@@ -144,7 +145,7 @@ class ManagerFunctionality extends AnyFunSpec with BeforeAndAfter {
               ProductReadDto(
                 id.toString,
                 "testproduct",
-                Category.Food,
+                categoryDto,
                 supplierDto,
                 20f,
                 "",
@@ -180,7 +181,7 @@ class ManagerFunctionality extends AnyFunSpec with BeforeAndAfter {
         " If client not exists in at least one group with product " +
         "then he won't be able to see this product . If product is not at any group than all clients will see this product"
     ) {
-      val createProductBody = ProductCreateDto("testproduct", Category.Food, 1, 20f, None)
+      val createProductBody = ProductCreateDto("testproduct", 1, 1, 20f, None)
       val createProductRequest =
         Request[IO](method = POST, uri = productAPIAddress)
           .withEntity(createProductBody)
@@ -202,7 +203,7 @@ class ManagerFunctionality extends AnyFunSpec with BeforeAndAfter {
               ProductReadDto(
                 id.toString,
                 "testproduct",
-                Category.Food,
+                categoryDto,
                 supplierDto,
                 20f,
                 "",
@@ -254,7 +255,7 @@ class ManagerFunctionality extends AnyFunSpec with BeforeAndAfter {
     ) {
       describe("CRUD products") {
         it("get BadRequestError if validation failed") {
-          val createProductBody = ProductCreateDto("testproduct", Category.Food, -1, 20f, None)
+          val createProductBody = ProductCreateDto("testproduct", 1, -1, 20f, None)
           val createProductRequest =
             Request[IO](method = POST, uri = productAPIAddress)
               .withEntity(createProductBody)
@@ -290,7 +291,7 @@ class ManagerFunctionality extends AnyFunSpec with BeforeAndAfter {
         }
 
         it("create : should return NotFoundError if Supplier doesn't exists") {
-          val body = ProductCreateDto("meeta", Category.Food, 10, 25.2f, None)
+          val body = ProductCreateDto("meeta", 1, 10, 25.2f, None)
           val request = Request[IO](method = POST, uri = productAPIAddress)
             .withEntity(body)
             .addCookie(managerCookie.name, managerCookie.content)
@@ -304,7 +305,7 @@ class ManagerFunctionality extends AnyFunSpec with BeforeAndAfter {
         }
 
         it("create: Will throw 400 Error if product has non-unique pair of (name,supplier_id)") {
-          val createProductBody = ProductCreateDto("testproduct", Category.Food, 1, 20f, None)
+          val createProductBody = ProductCreateDto("testproduct", 1, 1, 20f, None)
           val request =
             Request[IO](method = POST, uri = productAPIAddress)
               .withEntity(createProductBody)
@@ -328,7 +329,7 @@ class ManagerFunctionality extends AnyFunSpec with BeforeAndAfter {
           val updateProductBody = ProductUpdateDto(
             "7befac6d-9e68-4064-927c-b9700438fea1",
             "testproduct",
-            Category.Food,
+            1,
             10,
             20f,
             "test update",
@@ -348,13 +349,13 @@ class ManagerFunctionality extends AnyFunSpec with BeforeAndAfter {
         }
 
         it("update: Will throw 400 Error if product has non-unique pair of (name,supplier_id)") {
-          val createProductBody1 = ProductCreateDto("testproduct", Category.Food, 1, 20f, None)
+          val createProductBody1 = ProductCreateDto("testproduct", 1, 1, 20f, None)
           val request1 =
             Request[IO](method = POST, uri = productAPIAddress)
               .withEntity(createProductBody1)
               .addCookie(managerCookie.name, managerCookie.content)
 
-          val createProductBody2 = ProductCreateDto("testproduc", Category.Food, 1, 20f, None)
+          val createProductBody2 = ProductCreateDto("testproduc", 1, 1, 20f, None)
           val request2 =
             Request[IO](method = POST, uri = productAPIAddress)
               .withEntity(createProductBody2)
@@ -367,7 +368,7 @@ class ManagerFunctionality extends AnyFunSpec with BeforeAndAfter {
                 updateProductBody = ProductUpdateDto(
                   id2.toString,
                   "testproduct",
-                  Category.Food,
+                  1,
                   1,
                   20f,
                   "test update",
@@ -395,7 +396,7 @@ class ManagerFunctionality extends AnyFunSpec with BeforeAndAfter {
           val updateProductBody = ProductUpdateDto(
             "7befac6d-9e68-4064-927c-b9700438fea1",
             "testproduct",
-            Category.Food,
+            1,
             1,
             20f,
             "test update",
@@ -431,7 +432,7 @@ class ManagerFunctionality extends AnyFunSpec with BeforeAndAfter {
         it(
           "should get ForbiddenError if manager will try to delete product in active order(not cancelled and not delivered)"
         ) {
-          val createProductBody = ProductCreateDto("testproduct", Category.Food, 1, 20f, None)
+          val createProductBody = ProductCreateDto("testproduct", 1, 1, 20f, None)
           val request =
             Request[IO](method = POST, uri = productAPIAddress)
               .withEntity(createProductBody)
@@ -522,7 +523,7 @@ class ManagerFunctionality extends AnyFunSpec with BeforeAndAfter {
         }
 
         it("add attachment : Will throw 400 Error if attachment with given URL and product_id already exists") {
-          val createProductBody = ProductCreateDto("testproduct", Category.Food, 1, 20f, None)
+          val createProductBody = ProductCreateDto("testproduct", 1, 1, 20f, None)
           val createProductRequest =
             Request[IO](method = POST, uri = productAPIAddress)
               .withEntity(createProductBody)
@@ -654,7 +655,7 @@ class ManagerFunctionality extends AnyFunSpec with BeforeAndAfter {
         }
 
         it("should return 400 Error if you try to add user/product in group more than once") {
-          val createProductBody = ProductCreateDto("testproduct", Category.Food, 1, 20f, None)
+          val createProductBody = ProductCreateDto("testproduct", 1, 1, 20f, None)
           val createProductRequest =
             Request[IO](method = POST, uri = productAPIAddress)
               .withEntity(createProductBody)
@@ -697,7 +698,7 @@ class ManagerFunctionality extends AnyFunSpec with BeforeAndAfter {
         }
 
         it("should return 400 Error if you try to delete non-existing in group user/product") {
-          val createProductBody = ProductCreateDto("testproduct", Category.Food, 1, 20f, None)
+          val createProductBody = ProductCreateDto("testproduct", 1, 1, 20f, None)
           val createProductRequest =
             Request[IO](method = POST, uri = productAPIAddress)
               .withEntity(createProductBody)
