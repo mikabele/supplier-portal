@@ -38,7 +38,8 @@ libraryDependencies ++= Seq(
   "org.apache.logging.log4j" % "log4j-api"            % loggerVersion,
   "org.apache.logging.log4j" % "log4j-core"           % loggerVersion,
   "org.reactormonk"         %% "cryptobits"           % "1.3.1",
-  "org.scalamock"           %% "scalamock"            % "5.2.0"  % Test
+  "org.scalamock"           %% "scalamock"            % "5.2.0"  % Test,
+  "com.github.pureconfig"   %% "pureconfig"           % "0.17.1"
 )
 
 addCompilerPlugin(

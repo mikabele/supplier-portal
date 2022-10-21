@@ -1,5 +1,6 @@
 package service
 
+import cats.Monad
 import cats.effect.Sync
 import domain.user.AuthorizedUserDomain
 import dto.delivery.{DeliveryCreateDto, DeliveryReadDto}
@@ -18,10 +19,11 @@ trait DeliveryService[F[_]] {
 }
 
 object DeliveryService {
-  def of[F[_]: Sync](
+  def of[F[_]: Sync: Monad](
     deliveryRepository: DeliveryRepository[F],
-    orderRepository:    OrderRepository[F],
-    logHandler:         LogHandler[F]
+    orderRepository:    OrderRepository[F]
+  )(
+    implicit logHandler: LogHandler[F]
   ): DeliveryService[F] = {
     new DeliveryServiceImpl[F](deliveryRepository, orderRepository, logHandler)
   }

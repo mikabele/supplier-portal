@@ -8,7 +8,6 @@ import domain.product.{ProductCreateDomain, ProductReadDomain, ProductStatus, Pr
 import domain.user.AuthorizedUserDomain
 import doobie.Transactor
 import repository.impl.DoobieProductRepositoryImpl
-import types.UuidStr
 
 import java.util.UUID
 
@@ -17,14 +16,14 @@ trait ProductRepository[F[_]] {
 
   def getNewProductsBySubscription(user: AuthorizedUserDomain): F[List[ProductReadDomain]]
 
-  def addProduct(product:    ProductCreateDomain):   F[UUID]
-  def updateProduct(product: ProductUpdateDomain):   F[Int]
+  def addProduct(product:    ProductCreateDomain): F[UUID]
+  def updateProduct(product: ProductUpdateDomain): F[Int]
   def deleteProduct(id:      UUID): F[Int]
   def viewProducts(user:     AuthorizedUserDomain, statuses: NonEmptyList[ProductStatus]): F[List[ProductReadDomain]]
   def attach(attachment:     AttachmentCreateDomain): F[UUID]
   def searchByCriteria(user: AuthorizedUserDomain, criteria: CriteriaDomain): F[List[ProductReadDomain]]
-  def getByIds(ids:          NonEmptyList[UuidStr]): F[List[ProductReadDomain]]
-  def removeAttachment(id:   UUID):                  F[Int]
+  def getByIds(ids:          NonEmptyList[UUID]):  F[List[ProductReadDomain]]
+  def removeAttachment(id:   UUID):                F[Int]
 
 }
 

@@ -1,9 +1,9 @@
 package functional_tests
 
 import cats.effect._
-import domain.category.Category
 import domain.product.ProductStatus
 import dto.attachment.{AttachmentCreateDto, AttachmentReadDto}
+import dto.category.CategoryDto
 import dto.criteria.CriteriaDto
 import dto.delivery.DeliveryCreateDto
 import dto.group.{GroupCreateDto, GroupWithProductsDto, GroupWithUsersDto}
@@ -66,6 +66,7 @@ class ClientFunctionality extends AnyFunSpec {
   private val clientUserId = clientCookie.content.split("-", 3).last
 
   private val supplierDto = SupplierDto(1, "Mem", "Minsk")
+  private val categoryDto = CategoryDto(1, "food")
   private val dtf         = DateTimeFormatter.ofPattern("yyyy-MM-dd HH:mm:ss")
   private val dateNow     = dtf.format(LocalDateTime.now())
 
@@ -73,7 +74,7 @@ class ClientFunctionality extends AnyFunSpec {
     it(
       "should be able browse and search products by different criterias. He can see only Available and NotAvailable Products. User should be in at least one group where product is. Otherwise, he can't see product"
     ) {
-      val createProductBody = ProductCreateDto("testproduct", Category.Food, 1, 20f, None)
+      val createProductBody = ProductCreateDto("testproduct", 1, 1, 20f, None)
       val request =
         Request[IO](method = POST, uri = productAPIAddress)
           .withEntity(createProductBody)
@@ -109,7 +110,7 @@ class ClientFunctionality extends AnyFunSpec {
               ProductReadDto(
                 id.toString,
                 "testproduct",
-                Category.Food,
+                categoryDto,
                 supplierDto,
                 20f,
                 "",
@@ -138,7 +139,7 @@ class ClientFunctionality extends AnyFunSpec {
     it(
       "should be able to make order, view his orders, cancel his order. Can add only available products in orderDto"
     ) {
-      val createProductBody = ProductCreateDto("testproduct", Category.Food, 1, 20f, None)
+      val createProductBody = ProductCreateDto("testproduct", 1, 1, 20f, None)
       val request =
         Request[IO](method = POST, uri = productAPIAddress)
           .withEntity(createProductBody)
@@ -188,7 +189,7 @@ class ClientFunctionality extends AnyFunSpec {
     }
 
     it("should be able to subscribe category/supplier , view his subscriptions, remove subscription") {
-      val subscribeCategoryBody = CategorySubscriptionDto(Category.Food)
+      val subscribeCategoryBody = CategorySubscriptionDto(1)
       val subscribeCategoryRequest =
         Request[IO](method = POST, uri = subscriptionAPIAddress / "category")
           .addCookie(clientCookie.name, clientCookie.content)
@@ -212,7 +213,7 @@ class ClientFunctionality extends AnyFunSpec {
           .addCookie(clientCookie.name, clientCookie.content)
           .withEntity(subscribeCategoryBody)
 
-      val createProductBody = ProductCreateDto("testproduct", Category.Food, 1, 20f, None)
+      val createProductBody = ProductCreateDto("testproduct", 1, 1, 20f, None)
       val createProductRequest =
         Request[IO](method = POST, uri = productAPIAddress)
           .withEntity(createProductBody)
@@ -222,8 +223,8 @@ class ClientFunctionality extends AnyFunSpec {
           for {
             s1                <- cl.status(subscribeCategoryRequest)
             s2                <- cl.status(subscribeSupplierRequest)
-            actualCategories  <- cl.fetchAs[List[Category]](getCategorySubRequest)
-            expectedCategories = List(Category.Food)
+            actualCategories  <- cl.fetchAs[List[CategoryDto]](getCategorySubRequest)
+            expectedCategories = List(categoryDto)
             actualSuppliers   <- cl.fetchAs[List[SupplierDto]](getSupplierSubRequest)
             expectedSuppliers  = List(supplierDto)
             id                <- cl.fetchAs[UUID](createProductRequest)
@@ -266,7 +267,7 @@ class ClientFunctionality extends AnyFunSpec {
       }
 
       it("should return BadRequestError if you try to cancel order that is in status Cancelled, Assigned, Delivered") {
-        val createProductBody = ProductCreateDto("testproduct", Category.Food, 1, 20f, None)
+        val createProductBody = ProductCreateDto("testproduct", 1, 1, 20f, None)
         val request =
           Request[IO](method = POST, uri = productAPIAddress)
             .withEntity(createProductBody)
@@ -339,7 +340,7 @@ class ClientFunctionality extends AnyFunSpec {
       }
 
       it("should return BadRequestError if there are not available or non-existing products") {
-        val createProductBody = ProductCreateDto("testproduct", Category.Food, 1, 20f, None)
+        val createProductBody = ProductCreateDto("testproduct", 1, 1, 20f, None)
         val request =
           Request[IO](method = POST, uri = productAPIAddress)
             .withEntity(createProductBody)
@@ -366,7 +367,7 @@ class ClientFunctionality extends AnyFunSpec {
               updateProductBody = ProductUpdateDto(
                 id.toString,
                 "testproduct",
-                Category.Food,
+                1,
                 1,
                 20f,
                 "test update",
@@ -399,7 +400,7 @@ class ClientFunctionality extends AnyFunSpec {
 
     describe("subscription limitations") {
       it("should return BadRequestError if you try to subscribe supplier/category that already exists") {
-        val subscribeCategoryBody = CategorySubscriptionDto(Category.Food)
+        val subscribeCategoryBody = CategorySubscriptionDto(1)
         val subscribeCategoryRequest =
           Request[IO](method = POST, uri = subscriptionAPIAddress / "category")
             .addCookie(clientCookie.name, clientCookie.content)

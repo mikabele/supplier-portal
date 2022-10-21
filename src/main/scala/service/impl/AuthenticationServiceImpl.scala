@@ -25,6 +25,7 @@ class AuthenticationServiceImpl[F[_]: Monad](
   userRepository: UserRepository[F],
   logHandler:     LogHandler[F]
 ) extends AuthenticationService[F] {
+  //TODO - wrap in Resource
   private val key    = PrivateKey(Codec.toUTF8(Random.alphanumeric.take(20).mkString("")))
   private val crypto = CryptoBits(key)
   private val clock  = java.time.Clock.systemUTC

@@ -3,24 +3,26 @@ package service.impl
 import cats.Monad
 import cats.data.{Chain, EitherT}
 import cats.syntax.all._
-import domain.category.Category
 import domain.user.AuthorizedUserDomain
+import dto.category.CategoryDto
 import dto.subscription.{CategorySubscriptionDto, SupplierSubscriptionDto}
 import dto.supplier.SupplierDto
+import error.category.CategoryError.CategoryNotFound
 import error.general.GeneralError
 import error.subscription.SubscriptionError.{SubscriptionExists, SubscriptionNotExists}
 import error.supplier.SupplierError.SupplierNotFound
 import logger.LogHandler
-import repository.{SubscriptionRepository, SupplierRepository}
+import repository.{CategoryRepository, SubscriptionRepository, SupplierRepository}
 import service.SubscriptionService
 import util.ConvertToErrorsUtil._
 import util.ConvertToErrorsUtil.instances._
-import util.ModelMapper.DomainToDto.supplierDomainToDto
+import util.ModelMapper.DomainToDto.{categoryDomainToDto, supplierDomainToDto}
 import util.ModelMapper.DtoToDomain.{validateCategorySubscriptionDto, validateSupplierSubscriptionDto}
 
 class SubscriptionServiceImpl[F[_]: Monad](
   subscriptionRepository: SubscriptionRepository[F],
   supplierRepository:     SupplierRepository[F],
+  categoryRepository:     CategoryRepository[F],
   logHandler:             LogHandler[F]
 ) extends SubscriptionService[F] {
   override def subscribeCategory(user: AuthorizedUserDomain, categoryDto: CategorySubscriptionDto): F[ErrorsOr[Int]] = {
@@ -28,6 +30,10 @@ class SubscriptionServiceImpl[F[_]: Monad](
       _        <- logHandler.debug(s"Start validation : CategorySubscriptionDto").toErrorsOr
       category <- validateCategorySubscriptionDto(categoryDto).toErrorsOr(fromValidatedNec)
       _        <- logHandler.debug(s"Validation finished : CategorySubscriptionDto").toErrorsOr
+      _ <- EitherT.fromOptionF(
+        categoryRepository.getById(category.categoryId),
+        Chain[GeneralError](CategoryNotFound(category.categoryId.value))
+      )
       _ <- EitherT.fromOptionF(
         subscriptionRepository.checkCategorySubscription(user, category),
         Chain[GeneralError](SubscriptionExists)
@@ -95,11 +101,11 @@ class SubscriptionServiceImpl[F[_]: Monad](
     }
   }
 
-  override def getCategorySubscriptions(user: AuthorizedUserDomain): F[List[Category]] = {
+  override def getCategorySubscriptions(user: AuthorizedUserDomain): F[List[CategoryDto]] = {
     for {
       categories <- subscriptionRepository.getCategorySubscriptions(user)
       _          <- logHandler.debug(s"Some category subscriptions : $categories")
-    } yield categories
+    } yield categories.map(categoryDomainToDto)
   }
 
   override def getSupplierSubscriptions(user: AuthorizedUserDomain): F[List[SupplierDto]] = {

@@ -5,7 +5,14 @@ import cats.data.{Chain, EitherT}
 import cats.syntax.all._
 import dto.group.{GroupCreateDto, GroupReadDto, GroupWithProductsDto, GroupWithUsersDto}
 import error.general.GeneralError
-import error.group.ProductGroupError.{GroupExists, ProductAlreadyInGroup, ProductGroupNotFound, ProductIsNotInGroup, UserAlreadyInGroup, UserIsNotInGroup}
+import error.group.ProductGroupError.{
+  GroupExists,
+  ProductAlreadyInGroup,
+  ProductGroupNotFound,
+  ProductIsNotInGroup,
+  UserAlreadyInGroup,
+  UserIsNotInGroup
+}
 import error.product.ProductError.ProductNotFound
 import error.user.UserError.UserNotFound
 import logger.LogHandler
@@ -15,7 +22,11 @@ import util.ConvertToErrorsUtil.ErrorsOr
 import util.ModelMapper.DomainToDto.readProductGroupDomainToDto
 import util.ConvertToErrorsUtil._
 import util.ConvertToErrorsUtil.instances._
-import util.ModelMapper.DtoToDomain.{validateCreateProductGroupDto, validateProductGroupWithProductsDto, validateProductGroupWithUsersDto}
+import util.ModelMapper.DtoToDomain.{
+  validateCreateProductGroupDto,
+  validateProductGroupWithProductsDto,
+  validateProductGroupWithUsersDto
+}
 
 import java.util.UUID
 
@@ -129,7 +140,7 @@ class ProductGroupServiceImpl[F[_]: Monad](
         Chain[GeneralError](ProductGroupNotFound(domain.id.toString))
       )
       _                <- logHandler.debug(s"Group found : ${group.id}").toErrorsOr
-      products         <- productRepository.getByIds(domain.productIds).toErrorsOr
+      products         <- productRepository.getByIds(domain.productIds.map(id => UUID.fromString(id.value))).toErrorsOr
       _                <- logHandler.debug(s"Users in DB : $products").toErrorsOr
       invalidProductIds = domain.productIds.toList.diff(products.map(_.id))
       _ <- EitherT.cond(
